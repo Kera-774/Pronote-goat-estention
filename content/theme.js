@@ -197,6 +197,8 @@
 
     // ---- jetons propres à l'extension (utilisés aussi par themes.css)
     const op = r.opacity === null || r.opacity === undefined ? 1 : Math.min(1, Math.max(0.15, +r.opacity));
+    const st = r.st;
+    const blockBg = C.parse(st.blockColor) ? st.blockColor : t.surface;
     const pg = {
       'pg-accent': t.accent,
       'pg-accent-rgb': C.triplet(t.accent),
@@ -207,7 +209,7 @@
       'pg-text': t.text,
       'pg-muted': t.muted,
       'pg-border': t.border,
-      'pg-widget-bg': op < 1 ? C.rgba(t.surface, op) : t.surface,
+      'pg-widget-bg': op < 1 ? C.rgba(blockBg, op) : blockBg,
       'pg-gap': (r.gap === null || r.gap === undefined ? 24 : +r.gap) + 'px'
     };
     if (r.radius !== null && r.radius !== undefined) pg['pg-radius'] = +r.radius + 'px';
@@ -249,7 +251,8 @@
       );
     }
 
-    if (styled || op < 1 || r.radius !== null) {
+    const blockBorder = C.parse(st.blockBorder) ? st.blockBorder : r.colors ? t.border : '';
+    if (styled || op < 1 || r.radius !== null || st.blockColor || blockBorder) {
       const shadow = r.shadows === false
         ? 'none'
         : r.dark
@@ -258,10 +261,17 @@
       parts.push(
         ON + ' .widget {\n' +
           '  background: var(--pg-widget-bg) !important;\n' +
-          (r.colors ? '  border: 1px solid ' + (op < 1 ? C.rgba(t.border, 0.55) : t.border) + ';\n' : '') +
+          (blockBorder ? '  border: 1px solid ' + (op < 1 && !st.blockBorder ? C.rgba(blockBorder, 0.55) : blockBorder) + ' !important;\n' : '') +
           (r.radius !== null && r.radius !== undefined ? '  border-radius: var(--pg-radius) !important;\n' : '') +
           '  box-shadow: ' + shadow + ' !important;\n' +
           '}'
+      );
+    }
+
+    // texte des blocs : on redéfinit la variable de Pronote dans leur sous-arbre
+    if (C.parse(st.blockText)) {
+      parts.push(
+        ON + ' .AffichagePageAccueil .widget { --color-text: ' + st.blockText + '; color: ' + st.blockText + ' !important; }'
       );
     }
 
@@ -288,19 +298,7 @@
       );
     }
 
-    // ---- options d'interface
-    const st = r.st;
-    if (st.compactHeader) {
-      parts.push(
-        'html[data-pg-on] .ObjetBandeauEspace { height: 3.4rem !important; }\n' +
-          'html[data-pg-on] .ObjetBandeauEspace .ibe_util_photo { width: 3rem !important; height: 3rem !important; }\n' +
-          'html[data-pg-on] .ObjetBandeauEspace .ibe_image_etab img { max-height: 3rem !important; }\n' +
-          'html[data-pg-on] .AffichagePageAccueil { padding-top: 1.2rem !important; }'
-      );
-    }
-    if (st.hideFooter) parts.push('html[data-pg-on] .footer-wrapper { display: none !important; }');
-    if (st.hideLastLogin) parts.push('html[data-pg-on] .precedenteConnexion { visibility: hidden !important; }');
-    if (st.hideWidgetIcons) parts.push('html[data-pg-on] .widget .icone-widget-fond { display: none !important; }');
+    // (bandeaux, barre de navigation, parties masquées : content/interface.js)
     if (+st.maxWidth > 0) {
       parts.push(
         'html[data-pg-on] .AffichagePageAccueil .widgets-global-container { max-width: ' + +st.maxWidth + 'px !important; margin-left: auto !important; margin-right: auto !important; }'

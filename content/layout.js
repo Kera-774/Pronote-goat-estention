@@ -23,13 +23,15 @@
   const html = document.documentElement;
 
   const ROW = 4; // hauteur d'une ligne de grille, en px
-  const MIN_COL = 260; // largeur minimale d'une colonne, en px
+  // largeur minimale d'une colonne (réglable) : en dessous, elles se replient
+  const minCol = () => (core.config && +core.config.layout.minCol) || 260;
   const GENERIC = new Set(['widget', 'collapsible', 'pg-widget', 'ie-ripple']);
 
   const layout = {};
   PG.layout = layout;
 
   let ro = null; // ResizeObserver des widgets
+  let observed = new WeakSet();
   let roContainer = null; // ResizeObserver du conteneur
   let observedContainer = null;
   let lastEff = 0;
@@ -125,7 +127,7 @@
 
   function effectiveCols(container, N) {
     const w = container.clientWidth || window.innerWidth;
-    return Math.max(1, Math.min(N, Math.floor((w + gapPx) / (MIN_COL + gapPx))));
+    return Math.max(1, Math.min(N, Math.floor((w + gapPx) / (minCol() + gapPx))));
   }
 
   // État courant, utilisé par l'éditeur visuel
@@ -159,9 +161,41 @@
     }
   };
 
+  // Feuille générée : masquage, apparence et hauteur de chaque bloc.
+  // Le préfixe doublé assure une spécificité supérieure à goat.css.
+  const BLOCK = 'html .AffichagePageAccueil.AffichagePageAccueil .widgets-global-container.widgets-global-container ';
+
+  function lookCss(L) {
+    const C = PG.color;
+    const out = [];
+    for (const [key, lk] of Object.entries(L.look || {})) {
+      if (!lk || key.includes('#')) continue;
+      const sel = BLOCK + keySelector(key);
+      if (lk.bg && C.parse(lk.bg)) {
+        const a = Math.min(1, Math.max(0, lk.alpha === undefined || lk.alpha === null ? 1 : +lk.alpha));
+        out.push(sel + ' { background: ' + C.rgba(lk.bg, a) + ' !important; }');
+      }
+      if (lk.text && C.parse(lk.text)) {
+        // titre et contenu seulement : les boutons « Tout voir » gardent leurs couleurs
+        out.push(sel + ' > .content-container, ' + sel + ' > header h2 { --color-text: ' + lk.text + '; color: ' + lk.text + ' !important; }');
+      }
+      if (lk.noTitle) out.push(sel + ' > header h2 { display: none !important; }');
+    }
+    for (const [key, hv] of Object.entries(L.height || {})) {
+      const h = Math.round(+hv);
+      if (!h || key.includes('#')) continue;
+      const sel = BLOCK + keySelector(key);
+      out.push(
+        sel + ' { height: ' + Math.max(80, Math.min(2000, h)) + 'px !important; max-height: none !important; box-sizing: border-box !important; }\n' +
+          sel + ' > .content-container { overflow: auto !important; flex: 1 1 auto !important; min-height: 0 !important; }'
+      );
+    }
+    return out;
+  }
+
   function hideCss(cfg) {
     const L = cfg.layout;
-    const out = [];
+    const out = lookCss(L);
     const keys = Object.keys(L.hidden || {}).filter((k) => L.hidden[k] && !k.includes('#'));
     if (keys.length) {
       const sels = keys.map((k) => '.AffichagePageAccueil ' + keySelector(k));
@@ -208,6 +242,7 @@
     if (ro) ro.disconnect();
     if (roContainer) roContainer.disconnect();
     observedContainer = null;
+    observed = new WeakSet();
   }
 
   layout.apply = function () {
@@ -224,9 +259,11 @@
       if (html.classList.contains('pg-layout')) html.classList.remove('pg-layout');
       stopObservers();
       if (container) {
-        for (const it of layout.collect(container)) {
+        const items = layout.collect(container);
+        for (const it of items) {
           setAttr(it.el, 'data-pg-collapsed', enabled && cfg.layout.collapsed[it.key]);
         }
+        rememberWidgets(items);
       }
       return;
     }
@@ -267,8 +304,8 @@
         setVar(it.el, '--pg-span', span);
         setVar(it.el, '--pg-order', order++);
         setAttr(it.el, 'data-pg-collapsed', cfg.layout.collapsed[key]);
-        if (!it.el._pgObserved) {
-          it.el._pgObserved = true;
+        if (!observed.has(it.el)) {
+          observed.add(it.el);
           ro.observe(it.el);
         }
         measure(it.el);
@@ -367,6 +404,28 @@
     });
   };
 
+  // Apparence d'un bloc : { bg, alpha, text, noTitle } (null = réinitialiser)
+  layout.setLook = function (key, patch) {
+    edit((cfg) => {
+      if (!patch) delete cfg.layout.look[key];
+      else {
+        const cur = Object.assign({}, cfg.layout.look[key], patch);
+        for (const k of Object.keys(cur)) if (cur[k] === '' || cur[k] === null || cur[k] === false) delete cur[k];
+        if (Object.keys(cur).length) cfg.layout.look[key] = cur;
+        else delete cfg.layout.look[key];
+      }
+    });
+  };
+
+  // Hauteur d'un bloc en px (0 = automatique)
+  layout.setHeight = function (key, px) {
+    edit((cfg) => {
+      const h = Math.round(+px || 0);
+      if (h > 0) cfg.layout.height[key] = Math.max(80, Math.min(2000, h));
+      else delete cfg.layout.height[key];
+    });
+  };
+
   layout.addHiddenSelector = function (sel, label) {
     if (!layout.validSelector(sel)) return false;
     edit((cfg) => {
@@ -385,8 +444,12 @@
 
   layout.reset = function () {
     edit((cfg) => {
+      // positions, largeurs, hauteurs et masquages reviennent à l'origine ;
+      // l'apparence des blocs et les éléments masqués à la souris restent
       cfg.layout = Object.assign(U.clone(PG.DEFAULT_CONFIG.layout), {
-        hiddenSelectors: cfg.layout.hiddenSelectors
+        hiddenSelectors: cfg.layout.hiddenSelectors,
+        look: cfg.layout.look,
+        minCol: cfg.layout.minCol
       });
     });
   };

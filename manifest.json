@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Pronote GOAT — Thèmes, widgets & outils",
   "short_name": "Pronote GOAT",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Personnalise Pronote : thèmes Dev/Hacker…, éditeur glisser-déposer, widgets Infos & Sondages, profils, téléchargements.",
   "minimum_chrome_version": "111",
   "permissions": ["storage", "downloads"],
@@ -48,7 +48,7 @@
     },
     {
       "matches": ["*://*/pronote/*", "*://*.index-education.net/*"],
-      "js": ["lib/defaults.js", "lib/color.js", "lib/storage.js", "content/core.js", "content/theme.js"],
+      "js": ["lib/defaults.js", "lib/color.js", "lib/storage.js", "content/core.js", "content/theme.js", "content/interface.js"],
       "css": ["content/themes.css", "content/goat.css", "content/pronote-dl.css"],
       "run_at": "document_start",
       "all_frames": true

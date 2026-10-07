@@ -102,7 +102,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pop { position: fixed; z-index: 20; width: 320px; max-height: 80vh; overflow: auto; padding: 14px; background: rgba(17,24,39,.98);
   border: 1px solid rgba(255,255,255,.14); border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
 .pop h3 { margin: 0 0 10px; font-size: 14px; }
-.pop label.f { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; }
+.inline { display: inline-flex; align-items: center; gap: 6px; }
+.pop .f { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; }
 .pop .links .lr { display: grid; grid-template-columns: 42px 1fr 24px; gap: 4px; margin: 4px 0; }
 .pop .links .lr input:nth-child(3) { grid-column: 1 / 3; }
 .pop .links input { width: 100%; max-width: none; }
@@ -117,6 +118,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
   box-shadow: 0 10px 26px rgba(22,163,74,.45); display: flex; align-items: center; justify-content: center;
   opacity: .82; transition: transform .15s, opacity .15s; }
 .fab:hover { opacity: 1; transform: scale(1.07); }
+.fabwrap { position: fixed; right: 18px; bottom: 18px; width: 46px; height: 46px; }
+.fabwrap .fab { position: absolute; inset: 0; right: auto; bottom: auto; }
+.fabx { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; border: 0;
+  background: #111827; color: #fff; font-size: 11px; line-height: 20px; padding: 0; opacity: 0; transition: opacity .15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.fabwrap:hover .fabx, .fabx:focus-visible { opacity: 1; }
+.grip { position: fixed; z-index: 3; width: 18px; height: 18px; border-radius: 5px; cursor: nwse-resize; touch-action: none;
+  background: rgba(17,24,39,.94); border: 1px solid rgba(255,255,255,.3); box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+.grip::before { content: ""; position: absolute; inset: 4px; border-right: 2px solid #22c55e; border-bottom: 2px solid #22c55e; border-radius: 0 0 3px 0; }
+.grip.v { cursor: ns-resize; }
+.sizetip { position: fixed; z-index: 16; pointer-events: none !important; padding: 4px 8px; border-radius: 6px; background: #22c55e; color: #052e16;
+  font-weight: 700; font-size: 12px; transform: translate(-100%, -130%); white-space: nowrap; }
+.pop input[type=range] { width: 140px; accent-color: #22c55e; }
+.pop input[type=color] { width: 40px; height: 26px; padding: 0; border: 1px solid #374151; border-radius: 6px; background: none; }
+.pop .val { min-width: 46px; text-align: right; color: #9ca3af; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 `;
 
@@ -203,12 +219,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
       '<button data-a="span" title="Largeur (en colonnes)">1×</button>' +
       '<button data-a="collapse" title="Replier / déplier">▾</button>' +
       '<button data-a="hide" title="Masquer / afficher">👁</button>' +
+      '<button data-a="look" title="Fond, couleur du texte, hauteur">🎨</button>' +
       (isOurs ? '<button data-a="settings" title="Réglages du widget">⚙</button>' : '');
     bar.addEventListener('click', (e) => onBarClick(it.key, e));
     bar.querySelector('[data-a="drag"]').addEventListener('pointerdown', (e) => dragStart(it.key, e));
     bar.querySelector('[data-a="drag"]').addEventListener('keydown', (e) => keyMove(it.key, e));
-    root.append(frame, bar);
-    o = { frame, bar, t: bar.querySelector('.t'), span: bar.querySelector('[data-a="span"]'), col: bar.querySelector('[data-a="collapse"]'), hide: bar.querySelector('[data-a="hide"]') };
+    const grip = el('div', 'grip');
+    grip.title = 'Glisser : hauteur (et largeur en grille) · double-clic : hauteur automatique';
+    grip.addEventListener('pointerdown', (e) => resizeStart(it.key, e));
+    grip.addEventListener('dblclick', () => {
+      layout.setHeight(it.key, 0);
+      editor.toast('Hauteur automatique');
+    });
+    root.append(frame, bar, grip);
+    o = { frame, bar, grip, t: bar.querySelector('.t'), span: bar.querySelector('[data-a="span"]'), col: bar.querySelector('[data-a="collapse"]'), hide: bar.querySelector('[data-a="hide"]') };
     overlays.set(it.key, o);
     return o;
   }
@@ -247,7 +271,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
         seen.add(it.key);
         const vis = r.width > 0 && r.height > 0 && r.bottom > viewTop + 36 && r.top < innerHeight;
         o.frame.hidden = o.bar.hidden = !vis;
+        // la poignée n'apparaît que si le bas du bloc est à l'écran
+        o.grip.hidden = !vis || r.bottom > innerHeight + 4 || r.bottom < viewTop + 20;
         if (!vis) continue;
+        o.grip.classList.toggle('v', !html.classList.contains('pg-layout'));
+        place(o.grip, r.right - 12, r.bottom - 12);
         place(o.frame, r.left - 4, r.top - 4, r.width + 8, r.height + 8);
         const cut = Math.max(0, viewTop - (r.top - 4));
         const clip = cut ? 'inset(' + Math.round(cut) + 'px 0 0 0)' : '';
@@ -270,6 +298,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       if (!seen.has(k)) {
         o.frame.remove();
         o.bar.remove();
+        o.grip.remove();
         overlays.delete(k);
       }
     }
@@ -289,6 +318,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
     else if (a === 'collapse') layout.toggleCollapsed(key);
     else if (a === 'hide') layout.toggleHidden(key);
     else if (a === 'settings') editor.openSettings(key.slice(3), b);
+    else if (a === 'look') editor.openLook(key, b);
   }
 
   /* ------------------------------------------------------------------ */
@@ -472,6 +502,147 @@ button { font: inherit; color: inherit; cursor: pointer; }
   }
 
   /* ------------------------------------------------------------------ */
+  /* Redimensionnement (poignée en bas à droite de chaque bloc)          */
+  /* ------------------------------------------------------------------ */
+
+  let rsz = null;
+
+  function resizeStart(key, e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    refreshState();
+    const it = st && st.byKey[key];
+    if (!it) return;
+    const r = it.el.getBoundingClientRect();
+    const grid = html.classList.contains('pg-layout');
+    const g = gap();
+    const colW = grid ? (st.container.getBoundingClientRect().width - g * (st.eff - 1)) / st.eff : r.width;
+    // bloc collé au bord droit : il s'élargit vers la gauche
+    const rightmost = grid && r.right >= st.container.getBoundingClientRect().right - 4;
+    rsz = { key, el: it.el, x: e.clientX, y: e.clientY, h: r.height, w: r.width, colW, g, grid, rightmost, span: +core.config.layout.span[key] || 1, tip: el('div', 'sizetip') };
+    root.appendChild(rsz.tip);
+    const t = e.target;
+    try {
+      t.setPointerCapture(e.pointerId);
+    } catch (err) {
+      /* ignore */
+    }
+    const move = (ev) => {
+      const h = Math.max(80, Math.round(rsz.h + ev.clientY - rsz.y));
+      rsz.newH = h;
+      rsz.el.style.setProperty('height', h + 'px', 'important');
+      let label = h + ' px';
+      if (rsz.grid) {
+        const dx = (ev.clientX - rsz.x) * (rsz.rightmost ? -1 : 1);
+        const span = Math.max(1, Math.min(st.eff, Math.round((rsz.w + dx + rsz.g) / (rsz.colW + rsz.g))));
+        rsz.newSpan = span;
+        rsz.el.style.setProperty('--pg-span', String(span));
+        label += ' · ' + span + ' col.';
+      }
+      rsz.tip.textContent = label;
+      place(rsz.tip, ev.clientX, ev.clientY);
+    };
+    const end = () => {
+      t.removeEventListener('pointermove', move);
+      const R = rsz;
+      rsz = null;
+      R.tip.remove();
+      R.el.style.removeProperty('height');
+      if (R.newH && Math.abs(R.newH - R.h) > 4) layout.setHeight(key, R.newH);
+      if (R.grid && R.newSpan && R.newSpan !== R.span) {
+        core.updateConfig((c) => {
+          if (R.newSpan === 1) delete c.layout.span[key];
+          else c.layout.span[key] = R.newSpan;
+        });
+      }
+      stAge = 99;
+    };
+    t.addEventListener('pointermove', move);
+    t.addEventListener('pointerup', end, { once: true });
+    t.addEventListener('pointercancel', end, { once: true });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Apparence d'un bloc                                                 */
+  /* ------------------------------------------------------------------ */
+
+  editor.openLook = function (key, anchor) {
+    if (!ui()) return;
+    const p = openPop(anchor);
+    const L = core.config.layout;
+    const lk = Object.assign({}, L.look[key]);
+    const st0 = layout.state();
+    const it = st0 && st0.byKey[key];
+    const title = it ? it.title : key;
+    const h = +L.height[key] || 0;
+    const cur = it ? Math.round(it.el.getBoundingClientRect().height) : 300;
+    const alpha = lk.alpha === undefined ? 1 : +lk.alpha;
+    const pct = (v) => Math.round(v * 100) + ' %';
+
+    p.innerHTML =
+      '<h3>🎨 ' + esc(title) + '</h3>' +
+      '<div class="f">Fond du bloc<span class="inline"><label class="chk"><input type="checkbox" data-k="bgon"' + (lk.bg ? ' checked' : '') + '> perso</label>' +
+      '<input type="color" data-k="bg" value="' + esc(lk.bg || '#ffffff') + '"></span></div>' +
+      '<div class="f">Opacité du fond<span class="inline"><input type="range" data-k="alpha" min="0" max="1" step="0.05" value="' + alpha + '"><span class="val">' + pct(alpha) + '</span></span></div>' +
+      '<div class="f">Couleur du texte<span class="inline"><label class="chk"><input type="checkbox" data-k="texton"' + (lk.text ? ' checked' : '') + '> perso</label>' +
+      '<input type="color" data-k="text" value="' + esc(lk.text || '#111111') + '"></span></div>' +
+      '<label class="chk"><input type="checkbox" data-k="noTitle"' + (lk.noTitle ? ' checked' : '') + '> Masquer le titre du bloc</label>' +
+      '<div class="f">Hauteur<span class="inline"><label class="chk"><input type="checkbox" data-k="hauto"' + (h ? '' : ' checked') + '> auto</label>' +
+      '<input type="range" data-k="h" min="80" max="1200" step="10" value="' + (h || cur) + '"' + (h ? '' : ' disabled') + '><span class="val">' + (h ? h + ' px' : 'auto') + '</span></span></div>' +
+      '<p class="hint">Astuce : la poignée en bas à droite du bloc règle aussi sa hauteur et sa largeur.</p>' +
+      '<div class="acts"><button class="btn danger" data-k="reset">Réinitialiser</button><button class="btn primary" data-k="close">Fermer</button></div>';
+
+    const $ = (k) => p.querySelector('[data-k="' + k + '"]');
+    // écritures groupées pendant qu'on fait glisser un curseur
+    const setH = PG.util.debounce((v) => layout.setHeight(key, v), 60);
+    const sync = PG.util.debounce(() => {
+      layout.setLook(key, {
+        bg: $('bgon').checked ? $('bg').value : '',
+        alpha: $('bgon').checked ? +$('alpha').value : null,
+        text: $('texton').checked ? $('text').value : '',
+        noTitle: $('noTitle').checked
+      });
+    }, 60);
+    p.addEventListener('input', (e) => {
+      const k = e.target.getAttribute('data-k');
+      if (k === 'alpha') {
+        e.target.nextElementSibling.textContent = pct(+e.target.value);
+        if (!$('bgon').checked) $('bgon').checked = true;
+        sync();
+      } else if (k === 'bg') {
+        $('bgon').checked = true;
+        sync();
+      } else if (k === 'text') {
+        $('texton').checked = true;
+        sync();
+      } else if (k === 'h') {
+        e.target.nextElementSibling.textContent = e.target.value + ' px';
+        setH(+e.target.value);
+      }
+    });
+    p.addEventListener('change', (e) => {
+      const k = e.target.getAttribute('data-k');
+      if (k === 'bgon' || k === 'texton' || k === 'noTitle') sync();
+      if (k === 'hauto') {
+        $('h').disabled = e.target.checked;
+        $('h').nextElementSibling.textContent = e.target.checked ? 'auto' : $('h').value + ' px';
+        layout.setHeight(key, e.target.checked ? 0 : +$('h').value);
+      }
+    });
+    p.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-k]');
+      if (!b) return;
+      if (b.getAttribute('data-k') === 'close') closePop();
+      if (b.getAttribute('data-k') === 'reset') {
+        layout.setLook(key, null);
+        layout.setHeight(key, 0);
+        closePop();
+        editor.toast('Apparence du bloc réinitialisée');
+      }
+    });
+  };
+
+  /* ------------------------------------------------------------------ */
   /* Barre d'outils                                                      */
   /* ------------------------------------------------------------------ */
 
@@ -518,10 +689,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
         ? '<div class="row"><span>Colonnes</span><span class="stepper"><button class="btn" data-k="cols-" aria-label="Moins de colonnes">−</button><b>' +
           (s ? s.N : '?') + '</b><button class="btn" data-k="cols+" aria-label="Plus de colonnes">+</button></span></div>' +
           '<label class="chk"><input type="checkbox" data-k="custom"' + (cfg.layout.enabled ? ' checked' : '') + '> Agencement personnalisé</label>' +
+          '<div class="row"><span>Largeur mini d’une colonne</span><span class="inline"><input type="range" data-k="mincol" min="180" max="600" step="10" value="' + cfg.layout.minCol + '" style="width:90px;accent-color:#22c55e"><b class="muted">' + cfg.layout.minCol + '</b></span></div>' +
           '<p class="hint">Glisse les widgets par leur poignée ⠿. Les widgets masqués restent visibles en grisé pendant l’édition.</p>' +
           (hiddenNative.length ? '<p class="hint">' + hiddenNative.length + ' widget(s) masqué(s) — clique sur 🚫 pour les réafficher.</p>' : '') +
           '<button class="btn wide" data-k="reset">↺ Réinitialiser l’agencement</button>'
         : '<p class="hint">Ouvre la page d’accueil de Pronote pour déplacer les widgets.</p>') +
+      '<h4>Bandeaux & boutons</h4>' +
+      [
+        ['banner', 'Bandeau du haut'],
+        ['banner.logo', 'Logo en haut à gauche'],
+        ['nav', 'Barre de navigation'],
+        ['second', 'Bandeau « Page d’accueil »'],
+        ['footer', 'Pied de page']
+      ].map(([k, l]) => '<label class="chk"><input type="checkbox" data-part="' + k + '"' + (cfg.ui.parts[k] === false ? '' : ' checked') + '> ' + l + '</label>').join('') +
+      '<label class="chk"><input type="checkbox" data-k="fab"' + (cfg.ui.fab !== false ? ' checked' : '') + '> Bouton ✏️ flottant</label>' +
+      '<p class="hint">Tout le détail (textes du bandeau, onglets, raccourcis) : popup › 🧭 Barres.</p>' +
       '<h4>Widgets GOAT</h4>' + ours +
       '<h4>Éléments masqués (' + zaps.length + ')</h4>' +
       '<button class="btn wide primary" data-k="zap">🎯 Masquer un élément de la page</button>' +
@@ -548,6 +730,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
     tb.addEventListener('click', onToolbarClick);
     tb.addEventListener('change', onToolbarChange);
+    tb.addEventListener('input', (e) => {
+      if (e.target.getAttribute('data-k') === 'mincol') e.target.nextElementSibling.textContent = e.target.value;
+    });
 
     // déplacement de la barre par son en-tête
     const head = tb.querySelector('.head');
@@ -599,6 +784,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
     if (k === 'profile') PG.store.setActive(t.value);
     else if (k === 'theme') core.updateConfig((c) => void (c.theme.id = t.value));
     else if (k === 'custom') core.updateConfig((c) => void (c.layout.enabled = t.checked));
+    else if (k === 'fab') core.updateConfig((c) => void (c.ui.fab = t.checked));
+    else if (k === 'mincol') core.updateConfig((c) => void (c.layout.minCol = +t.value));
+    else if (t.hasAttribute('data-part')) {
+      const part = t.getAttribute('data-part');
+      core.updateConfig((c) => {
+        if (t.checked) delete c.ui.parts[part];
+        else c.ui.parts[part] = false;
+      });
+    }
     else if (t.hasAttribute('data-w')) {
       const id = t.getAttribute('data-w');
       core.updateConfig((c) => void (c.widgets[id].enabled = t.checked));
@@ -920,10 +1114,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
     if (want && !fab) {
       const r = ui();
       if (!r) return;
-      fab = el('button', 'fab', '✏️');
-      fab.title = 'Personnaliser la page (Alt+Maj+E)';
-      fab.setAttribute('aria-label', 'Ouvrir l’éditeur visuel Pronote GOAT');
-      fab.addEventListener('click', () => editor.start());
+      fab = el('div', 'fabwrap');
+      const b = el('button', 'fab', '✏️');
+      b.title = 'Personnaliser la page (Alt+Maj+E)';
+      b.setAttribute('aria-label', 'Ouvrir l’éditeur visuel Pronote GOAT');
+      b.addEventListener('click', () => editor.start());
+      const x = el('button', 'fabx', '✕');
+      x.title = 'Masquer ce bouton (réactivable dans le popup)';
+      x.setAttribute('aria-label', 'Masquer le bouton d’édition');
+      x.addEventListener('click', (e) => {
+        e.stopPropagation();
+        core.updateConfig((c) => void (c.ui.fab = false));
+        editor.toast('Bouton masqué — Alt+Maj+E ou le popup ouvrent toujours l’éditeur');
+      });
+      fab.append(b, x);
       r.appendChild(fab);
     } else if (!want && fab) {
       fab.remove();
@@ -965,6 +1169,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
     for (const o of overlays.values()) {
       o.frame.remove();
       o.bar.remove();
+      o.grip.remove();
     }
     overlays.clear();
     if (tb) tb.remove();

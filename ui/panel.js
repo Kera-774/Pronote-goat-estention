@@ -25,6 +25,7 @@
     profile: null,
     tools: null,
     seen: {},
+    seenNav: [],
     infos: null,
     devoirs: 0,
     asset: '',
@@ -37,6 +38,7 @@
   const TABS = [
     ['themes', '🎨', 'Thèmes'],
     ['style', '🖌️', 'Style'],
+    ['bars', '🧭', 'Barres'],
     ['home', '🧩', 'Accueil'],
     ['tools', '🛠️', 'Outils'],
     ['profiles', '👤', 'Profils']
@@ -80,8 +82,9 @@
     S.index = index;
     S.profile = await PG.store.getActive();
     S.tools = await PG.store.tools();
-    const loc = await chrome.storage.local.get(['pgSeenWidgets', 'pgInfosCache', 'pdlDevoirs']);
+    const loc = await chrome.storage.local.get(['pgSeenWidgets', 'pgSeenNav', 'pgInfosCache', 'pdlDevoirs']);
     S.seen = loc.pgSeenWidgets || {};
+    S.seenNav = Array.isArray(loc.pgSeenNav) ? loc.pgSeenNav : [];
     S.infos = loc.pgInfosCache || null;
     S.devoirs = Array.isArray(loc.pdlDevoirs) ? loc.pdlDevoirs.length : 0;
     const aid = S.profile.config.style.background.assetId;
@@ -214,6 +217,39 @@
     );
   }
 
+  // Couleur facultative : case « auto » cochée = valeur vide (selon le thème)
+  function colorAuto(path, label, fallback, hint) {
+    const v = getPath(cfg(), path) || '';
+    const ok = /^#[0-9a-f]{6}$/i.test(v);
+    return row(
+      label,
+      '<span class="inline"><label class="inline hint"><input type="checkbox" data-auto-color="' + path + '" data-fallback="' + esc(fallback) + '"' + (ok ? '' : ' checked') + '> auto</label>' +
+        '<input type="color" data-cfg="' + path + '" value="' + esc(ok ? v : fallback) + '"' + (ok ? '' : ' disabled') + '></span>',
+      hint
+    );
+  }
+
+  // Curseur en px dont la valeur 0 signifie « taille d'origine »
+  function numAuto(path, label, min, max, step, fallback) {
+    const v = +getPath(cfg(), path) || 0;
+    return (
+      '<div class="row"><span>' + label + '</span><span class="inline">' +
+      '<label class="inline hint"><input type="checkbox" data-auto-num="' + path + '" data-fallback="' + fallback + '"' + (v ? '' : ' checked') + '> origine</label>' +
+      '<input type="range" data-cfg="' + path + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + (v || fallback) + '" data-fmt="px"' + (v ? '' : ' disabled') + '>' +
+      '<span class="val">' + (v ? v + ' px' : 'auto') + '</span></span></div>'
+    );
+  }
+
+  // Curseur sur une valeur quelconque de la config (sans case auto)
+  function range(path, label, min, max, step, fmt) {
+    const v = getPath(cfg(), path);
+    return (
+      '<div class="row"><span>' + label + '</span><span class="inline">' +
+      '<input type="range" data-cfg="' + path + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + v + '" data-fmt="' + (fmt ? fmt.name : '') + '">' +
+      '<span class="val">' + (fmt ? fmt(v) : v) + '</span></span></div>'
+    );
+  }
+
   // le nom de la fonction (pct, px) est repris dans data-fmt
   const FMT = {
     pct: (v) => Math.round(v * 100) + ' %',
@@ -340,12 +376,16 @@
     html += slider('style.fontScale', 'Taille du texte', 0.8, 1.3, 0.05, 1, FMT.pct);
     html += '</div>';
 
-    // Forme
-    html += '<div class="card"><h3>Formes & espacements</h3>';
-    html += slider('style.radius', 'Arrondi des widgets', 0, 28, 1, T.radius === undefined ? 7 : T.radius, FMT.px, true);
+    // Blocs de l'accueil
+    const tk = Object.assign({}, base, ov);
+    html += '<div class="card"><h3>Blocs de l’accueil (widgets)</h3>';
+    html += colorAuto('style.blockColor', 'Fond des blocs', tk.surface);
+    html += slider('style.widgetOpacity', 'Opacité du fond', 0.15, 1, 0.05, T.widgetOpacity === undefined ? 1 : T.widgetOpacity, FMT.pct, true);
+    html += colorAuto('style.blockText', 'Texte des blocs', tk.text);
+    html += colorAuto('style.blockBorder', 'Bordure', tk.border);
+    html += slider('style.radius', 'Arrondi', 0, 28, 1, T.radius === undefined ? 7 : T.radius, FMT.px, true);
+    html += slider('style.blur', 'Flou derrière les blocs', 0, 24, 1, T.blur === undefined ? 0 : T.blur, FMT.px, true);
     html += slider('style.gap', 'Espacement', 4, 48, 2, T.gap === undefined ? 24 : T.gap, FMT.px, true);
-    html += slider('style.widgetOpacity', 'Opacité des widgets', 0.3, 1, 0.05, T.widgetOpacity === undefined ? 1 : T.widgetOpacity, FMT.pct, true);
-    html += slider('style.blur', 'Flou derrière les widgets', 0, 24, 1, T.blur === undefined ? 0 : T.blur, FMT.px, true);
     html += row(
       'Ombres',
       select('data-cfg="style.shadows" data-kind="tri"', [
@@ -354,16 +394,6 @@
         ['off', 'Non']
       ], st.shadows === null || st.shadows === undefined ? 'auto' : st.shadows ? 'on' : 'off')
     );
-    html += sw('Animations', 'data-cfg="style.animations"', st.animations !== false, 'Désactive aussi celles de Pronote si décoché.');
-    html += '</div>';
-
-    // Interface
-    html += '<div class="card"><h3>Interface</h3>';
-    html += sw('Bandeau du haut compact', 'data-cfg="style.compactHeader"', st.compactHeader);
-    html += sw('Masquer le pied de page', 'data-cfg="style.hideFooter"', st.hideFooter);
-    html += sw('Masquer « Précédente connexion »', 'data-cfg="style.hideLastLogin"', st.hideLastLogin);
-    html += sw('Masquer les icônes décoratives des widgets', 'data-cfg="style.hideWidgetIcons"', st.hideWidgetIcons);
-    html += sw('Bouton flottant ✏️ sur l’accueil', 'data-cfg="ui.fab"', c.ui.fab !== false);
     html += row(
       'Largeur de l’accueil',
       select('data-cfg="style.maxWidth" data-kind="num"', [
@@ -374,6 +404,125 @@
         [1800, '1800 px']
       ], st.maxWidth)
     );
+    html += '<p class="hint">Chaque bloc peut aussi avoir son propre fond : onglet 🧩 Accueil › Apparence, ou 🎨 dans l’éditeur.</p>';
+    html += sw('Animations', 'data-cfg="style.animations"', st.animations !== false, 'Désactive aussi celles de Pronote si décoché.');
+    html += '</div>';
+
+    // Lisibilité des autres pages
+    const R = c.ui.readability;
+    html += '<div class="card"><h3>Lisibilité des autres pages</h3>';
+    html += '<p class="hint">Des « cases » derrière les textes (notes, cahier de textes…) pour qu’ils restent lisibles sur une image de fond.</p>';
+    html += row(
+      'Cases derrière le texte',
+      select('data-cfg="ui.readability.mode" data-render="1"', [
+        ['auto', 'Auto (dès qu’il y a un fond)'],
+        ['cards', 'Toujours : une case par bloc'],
+        ['panel', 'Toujours : un grand panneau'],
+        ['off', 'Jamais']
+      ], R.mode)
+    );
+    if (R.mode !== 'off') {
+      html += colorAuto('ui.readability.color', 'Couleur des cases', tk.surface);
+      html += range('ui.readability.opacity', 'Opacité', 0.2, 1, 0.05, FMT.pct);
+      html += range('ui.readability.radius', 'Arrondi', 0, 32, 1, FMT.px);
+      html += range('ui.readability.pad', 'Marge intérieure', 0, 30, 1, FMT.px);
+      html += range('ui.readability.blur', 'Flou du fond', 0, 20, 1, FMT.px);
+      html += sw('Ombre portée', 'data-cfg="ui.readability.shadow"', R.shadow);
+    }
+    html += '</div>';
+    return html;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Onglet Barres : bandeau du haut, navigation, bandeau de page        */
+  /* ------------------------------------------------------------------ */
+
+  function partSwitches(group) {
+    const P = cfg().ui.parts;
+    return PG.UI_PARTS.filter((p) => p.group === group)
+      .map((p) => sw(esc(p.label), 'data-part="' + p.key + '"', P[p.key] !== false, p.warn ? esc(p.warn) : ''))
+      .join('');
+  }
+
+  const BANNER_EXAMPLES = ['{salut} {prenom} 👋', '{prenom} · {classe}', 'Bon courage pour le bac ! 💪', '{date}'];
+
+  function tabBars() {
+    const c = cfg();
+    const B = c.ui.banner;
+    const N = c.ui.nav;
+    let html = '';
+
+    // ---- bandeau du haut
+    html += '<div class="card"><h3>Bandeau du haut</h3>' + partSwitches('banner') + '<hr class="sep">';
+    html += row('Titre', '<input type="text" data-cfg="ui.banner.title" placeholder="Nom de l’établissement" value="' + esc(B.title) + '">', 'Remplace le nom de l’établissement.');
+    html += row('Sous-titre', '<input type="text" data-cfg="ui.banner.subtitle" placeholder="Espace Élèves - NOM Prénom" value="' + esc(B.subtitle) + '">', 'Remplace « Espace Élèves - NOM Prénom (classe) ».');
+    html +=
+      '<p class="hint">Variables : <code>{prenom}</code> <code>{nom}</code> <code>{classe}</code> <code>{etab}</code> <code>{date}</code> <code>{salut}</code> — exemples : ' +
+      BANNER_EXAMPLES.map((x) => '<button type="button" class="link" data-act="banner-ex" data-v="' + esc(x) + '">' + esc(x) + '</button>').join(' · ') +
+      '</p>';
+    html += numAuto('ui.banner.height', 'Hauteur', 28, 120, 2, 40);
+    html += range('ui.banner.textScale', 'Taille du texte', 0.6, 1.8, 0.05, FMT.pct);
+    html += row('Alignement', select('data-cfg="ui.banner.align"', [['center', 'Centré'], ['left', 'À gauche'], ['right', 'À droite']], B.align));
+    html += colorAuto('ui.banner.bg', 'Fond', '#ffffff');
+    html += colorAuto('ui.banner.fg', 'Texte', '#1d1d1d');
+    html += sw('Mode discret', 'data-cfg="ui.banner.privacy"', B.privacy, 'Floute le nom et la photo (partage d’écran, captures). Survol = net.');
+    html += '</div>';
+
+    // ---- barre de navigation
+    html += '<div class="card"><h3>Barre de navigation</h3>' + partSwitches('nav') + '<hr class="sep">';
+    if (!S.seenNav.length) {
+      html += '<p class="hint">Ouvre Pronote une fois pour lister ses onglets ici (affichage, ordre, sous-menus).</p>';
+    } else {
+      const order = N.order && N.order.length ? N.order : [];
+      const list = S.seenNav.slice().sort((a, b) => {
+        const ia = order.indexOf(a.key);
+        const ib = order.indexOf(b.key);
+        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+      });
+      html += '<p class="hint">Coche les onglets à afficher, réordonne-les avec ↑ ↓, déplie pour choisir leurs sous-entrées.</p><ul class="list">';
+      list.forEach((n, i) => {
+        html +=
+          '<li style="flex-wrap:wrap"><label class="sw" style="flex:1"><input type="checkbox" data-navhide="' + esc(n.key) + '"' + (N.hidden[n.key] ? '' : ' checked') + '><span class="sw-ui"></span><span class="lbl">' + esc(n.label) + '</span></label>' +
+          '<button type="button" class="btn icon" data-act="nav-move" data-k="' + esc(n.key) + '" data-dir="-1" title="Monter"' + (i ? '' : ' disabled') + '>↑</button>' +
+          '<button type="button" class="btn icon" data-act="nav-move" data-k="' + esc(n.key) + '" data-dir="1" title="Descendre"' + (i < list.length - 1 ? '' : ' disabled') + '>↓</button>' +
+          (n.subs.length
+            ? '<details data-open="nav-' + esc(n.key) + '" style="flex-basis:100%"' + (openDetails.has('nav-' + n.key) ? ' open' : '') + '><summary class="hint">' + n.subs.length + ' sous-entrée(s)</summary>' +
+              n.subs.map((sb) => '<label class="inline hint" style="display:flex;margin:3px 0 3px 12px"><input type="checkbox" data-navhide="' + esc(sb.key) + '"' + (N.hidden[sb.key] ? '' : ' checked') + '> ' + esc(sb.label) + '</label>').join('') +
+              '</details>'
+            : '') +
+          '</li>';
+      });
+      html += '</ul><div class="btns"><button type="button" class="btn" data-act="nav-reset">↺ Onglets d’origine</button></div>';
+    }
+    html += '<hr class="sep"><b>Raccourcis dans la barre</b><p class="hint">Des boutons directs vers tes pages préférées, à côté des onglets.</p><div class="links-ed">';
+    (N.shortcuts || []).forEach((l, i) => {
+      html +=
+        '<div class="lr"><input type="text" data-sc="' + i + '.emoji" value="' + esc(l.emoji || '') + '" maxlength="4" aria-label="Emoji">' +
+        '<input type="text" data-sc="' + i + '.label" value="' + esc(l.label || '') + '" placeholder="Libellé" aria-label="Libellé">' +
+        '<button type="button" class="btn icon" data-act="sc-del" data-i="' + i + '" title="Supprimer">✕</button>' +
+        '<input type="text" class="tg" data-sc="' + i + '.target" value="' + esc(l.target || '') + '" placeholder="menu:Mes notes ou https://…" aria-label="Cible"></div>';
+    });
+    const pages = [];
+    for (const n of S.seenNav) for (const sb of n.subs) if (sb.page) pages.push(sb.label);
+    html +=
+      '</div><div class="btns"><select data-sc-add aria-label="Page à ajouter"><option value="">＋ Ajouter une page de Pronote…</option>' +
+      [...new Set(pages)].map((pg) => '<option value="' + esc(pg) + '">' + esc(pg) + '</option>').join('') +
+      '</select><button type="button" class="btn" data-act="sc-add-url">＋ Lien externe</button></div>';
+    html += '<hr class="sep">';
+    html += colorAuto('ui.nav.bg', 'Fond de la barre', '#4b4b4b');
+    html += colorAuto('ui.nav.fg', 'Texte de la barre', '#f6f6f6');
+    html += numAuto('ui.nav.height', 'Hauteur', 30, 80, 1, 38);
+    html += '</div>';
+
+    // ---- bandeau « Page d'accueil »
+    html += '<div class="card"><h3>Bandeau « Page d’accueil »</h3><p class="hint">La barre grise sous le menu : titre de la page, précédente connexion, boutons PDF.</p>' + partSwitches('second');
+    html += colorAuto('ui.second.bg', 'Fond', '#d9dbdc');
+    html += colorAuto('ui.second.fg', 'Texte', '#004037');
+    html += '</div>';
+
+    // ---- autres éléments
+    html += '<div class="card"><h3>Autres éléments</h3>' + partSwitches('page');
+    html += sw('Bouton ✏️ flottant sur l’accueil', 'data-cfg="ui.fab"', c.ui.fab !== false, 'L’éditeur reste accessible avec Alt+Maj+E ou depuis ce popup.');
     html += '</div>';
     return html;
   }
@@ -416,6 +565,25 @@
       .join('');
   }
 
+  // Apparence d'un bloc : fond, opacité, texte, titre, hauteur
+  function lookForm(key) {
+    const L = cfg().layout;
+    const lk = L.look[key] || {};
+    const h = +L.height[key] || 0;
+    const a = lk.alpha === undefined ? 1 : +lk.alpha;
+    const k = esc(key);
+    return (
+      '<div class="wform">' +
+      row('Fond du bloc', '<span class="inline"><label class="inline hint"><input type="checkbox" data-look-auto="' + k + '.bg"' + (lk.bg ? '' : ' checked') + '> auto</label><input type="color" data-look="' + k + '.bg" value="' + esc(lk.bg || '#ffffff') + '"' + (lk.bg ? '' : ' disabled') + '></span>') +
+      '<div class="row"><span>Opacité du fond</span><span class="inline"><input type="range" data-look="' + k + '.alpha" min="0" max="1" step="0.05" value="' + a + '"' + (lk.bg ? '' : ' disabled') + '><span class="val">' + Math.round(a * 100) + ' %</span></span></div>' +
+      row('Texte', '<span class="inline"><label class="inline hint"><input type="checkbox" data-look-auto="' + k + '.text"' + (lk.text ? '' : ' checked') + '> auto</label><input type="color" data-look="' + k + '.text" value="' + esc(lk.text || '#111111') + '"' + (lk.text ? '' : ' disabled') + '></span>') +
+      sw('Masquer le titre', 'data-look="' + k + '.noTitle"', !!lk.noTitle) +
+      '<div class="row"><span>Hauteur</span><span class="inline"><label class="inline hint"><input type="checkbox" data-height-auto="' + k + '"' + (h ? '' : ' checked') + '> auto</label>' +
+      '<input type="range" data-height="' + k + '" min="80" max="1200" step="10" value="' + (h || 320) + '"' + (h ? '' : ' disabled') + '><span class="val">' + (h ? h + ' px' : 'auto') + '</span></span></div>' +
+      '</div>'
+    );
+  }
+
   function tabHome() {
     const c = cfg();
     const L = c.layout;
@@ -429,11 +597,14 @@
     } else {
       html += '<div class="notice">Ouvre Pronote dans cet onglet pour utiliser l’éditeur visuel (glisser-déposer, masquage d’éléments).</div>';
     }
+    html += sw('Bouton ✏️ flottant sur l’accueil', 'data-cfg="ui.fab"', c.ui.fab !== false);
     html += '</div>';
 
     html += '<div class="card"><h3>Agencement</h3>';
     html += sw('Agencement personnalisé', 'data-cfg="layout.enabled"', L.enabled, 'Grille libre en colonnes. Désactivé : disposition d’origine de Pronote.');
     html += row('Colonnes', select('data-cfg="layout.columns" data-kind="num"', [[0, 'Comme Pronote'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], L.columns));
+    html += range('layout.minCol', 'Largeur mini d’une colonne', 180, 600, 10, FMT.px);
+    html += '<p class="hint">Fenêtre trop étroite pour toutes les colonnes ? Elles se replient automatiquement, l’ordre est gardé.</p>';
     html += '<div class="btns"><button type="button" class="btn" data-act="reset-layout">↺ Réinitialiser l’agencement</button></div></div>';
 
     html += '<div class="card"><h3>Widgets GOAT</h3>';
@@ -443,7 +614,7 @@
       html +=
         '<div class="wcard"><div class="head"><span class="ico">' + def.icon + '</span><span class="grow"><b>' + esc(def.name) + '</b><small>' + esc(def.desc) + '</small></span>' +
         '<label class="sw"><input type="checkbox" data-cfg="widgets.' + id + '.enabled"' + (w.enabled ? ' checked' : '') + ' aria-label="Afficher ' + esc(def.name) + '"><span class="sw-ui"></span></label></div>' +
-        (def.schema.length ? '<details data-open="' + id + '"' + (openDetails.has(id) ? ' open' : '') + '><summary>Réglages</summary><div class="wform">' + widgetForm(id) + '</div></details>' : '') +
+        '<details data-open="' + id + '"' + (openDetails.has(id) ? ' open' : '') + '><summary>Réglages & apparence</summary><div class="wform">' + widgetForm(id) + '<hr class="sep">' + lookForm('pg:' + id) + '</div></details>' +
         '</div>';
     }
     html += '</div>';
@@ -453,13 +624,14 @@
     if (!seen.length) {
       html += '<p class="hint">Ouvre une fois la page d’accueil de Pronote pour lister ses widgets ici.</p>';
     } else {
-      html += '<ul class="list">';
+      html += '<ul class="list wl">';
       for (const [key, title] of seen) {
         const hidden = !!L.hidden[key];
         html +=
           '<li><span class="grow" title="' + esc(key) + '">' + esc(title || PG.PRONOTE_WIDGETS[key] || key) + '</span>' +
           '<label class="inline hint"><input type="checkbox" data-collapse="' + esc(key) + '"' + (L.collapsed[key] ? ' checked' : '') + '> replié</label>' +
-          '<label class="sw" title="Visible"><input type="checkbox" data-visible="' + esc(key) + '"' + (hidden ? '' : ' checked') + ' aria-label="Afficher ' + esc(title) + '"><span class="sw-ui"></span></label></li>';
+          '<label class="sw" title="Visible"><input type="checkbox" data-visible="' + esc(key) + '"' + (hidden ? '' : ' checked') + ' aria-label="Afficher ' + esc(title) + '"><span class="sw-ui"></span></label>' +
+          '<details data-open="look-' + esc(key) + '" style="flex-basis:100%"' + (openDetails.has('look-' + key) ? ' open' : '') + '><summary class="hint">Apparence</summary>' + lookForm(key) + '</details></li>';
       }
       html += '</ul>';
     }
@@ -598,8 +770,8 @@
     if (!main) return;
     const scroller = FULL ? document.scrollingElement : main;
     const y = scroller.scrollTop;
-    const fn = { themes: tabThemes, style: tabStyle, home: tabHome, tools: tabTools, profiles: tabProfiles }[S.tab] || tabThemes;
-    if (!S.tools.goat.enabled && ['themes', 'style', 'home'].includes(S.tab)) {
+    const fn = { themes: tabThemes, style: tabStyle, bars: tabBars, home: tabHome, tools: tabTools, profiles: tabProfiles }[S.tab] || tabThemes;
+    if (!S.tools.goat.enabled && ['themes', 'style', 'bars', 'home'].includes(S.tab)) {
       main.innerHTML =
         '<div class="notice warn">La personnalisation est désactivée : Pronote s’affiche d’origine. Réactive-la avec l’interrupteur en haut à droite.</div>' + fn();
     } else {
@@ -624,8 +796,36 @@
     return input.value;
   }
 
+  // Apparence d'un bloc : écrit un champ et nettoie les valeurs vides
+  function setLookField(c, key, field, val) {
+    const lk = Object.assign({}, c.layout.look[key]);
+    if (val === '' || val === null || val === false || val === undefined) delete lk[field];
+    else lk[field] = val;
+    if (!lk.bg) delete lk.alpha;
+    if (Object.keys(lk).length) c.layout.look[key] = lk;
+    else delete c.layout.look[key];
+  }
+
+  function splitKey(attr) {
+    const i = attr.lastIndexOf('.');
+    return [attr.slice(0, i), attr.slice(i + 1)];
+  }
+
   app.addEventListener('input', (e) => {
     const t = e.target;
+    if (t.matches('[data-look]') && t.type !== 'checkbox') {
+      const [key, field] = splitKey(t.getAttribute('data-look'));
+      const v = t.type === 'range' ? +t.value : t.value;
+      if (t.type === 'range') t.parentElement.querySelector('.val').textContent = Math.round(v * 100) + ' %';
+      updateCfg((c) => setLookField(c, key, field, v), false);
+      return;
+    }
+    if (t.matches('[data-height]')) {
+      const key = t.getAttribute('data-height');
+      t.parentElement.querySelector('.val').textContent = t.value + ' px';
+      updateCfg((c) => (c.layout.height[key] = +t.value), false);
+      return;
+    }
     if (t.matches('input[type="range"][data-cfg]')) {
       const v = valueOf(t);
       const out = t.parentElement.querySelector('.val');
@@ -675,6 +875,70 @@
     if (t.matches('[data-act="upload"]')) return upload(t.files && t.files[0]);
     if (t.matches('[data-act="import"]')) return importFile(t.files && t.files[0]);
 
+    if (t.matches('[data-look-auto]')) {
+      const [key, field] = splitKey(t.getAttribute('data-look-auto'));
+      const input = t.closest('.row').querySelector('input[type="color"]');
+      updateCfg((c) => {
+        setLookField(c, key, field, t.checked ? '' : input.value);
+        if (field === 'bg' && !t.checked) c.layout.look[key].alpha = 1;
+      });
+      return;
+    }
+    if (t.matches('[data-look]') && t.type === 'checkbox') {
+      const [key, field] = splitKey(t.getAttribute('data-look'));
+      updateCfg((c) => setLookField(c, key, field, t.checked), false);
+      return;
+    }
+    if (t.matches('[data-height-auto]')) {
+      const key = t.getAttribute('data-height-auto');
+      const input = t.closest('.row').querySelector('[data-height]');
+      updateCfg((c) => {
+        if (t.checked) delete c.layout.height[key];
+        else c.layout.height[key] = +input.value;
+      });
+      return;
+    }
+    if (t.matches('[data-auto-color]')) {
+      const path = t.getAttribute('data-auto-color');
+      const input = t.closest('.row').querySelector('input[type="color"]');
+      updateCfg((c) => setPath(c, path, t.checked ? '' : input.value || t.getAttribute('data-fallback')));
+      return;
+    }
+    if (t.matches('[data-auto-num]')) {
+      const path = t.getAttribute('data-auto-num');
+      updateCfg((c) => setPath(c, path, t.checked ? 0 : +t.getAttribute('data-fallback')));
+      return;
+    }
+    if (t.matches('[data-part]')) {
+      const k = t.getAttribute('data-part');
+      updateCfg((c) => {
+        if (t.checked) delete c.ui.parts[k];
+        else c.ui.parts[k] = false;
+      }, false);
+      return;
+    }
+    if (t.matches('[data-navhide]')) {
+      const k = t.getAttribute('data-navhide');
+      updateCfg((c) => {
+        if (t.checked) delete c.ui.nav.hidden[k];
+        else c.ui.nav.hidden[k] = true;
+      }, false);
+      return;
+    }
+    if (t.matches('[data-sc]')) {
+      const [i, k] = t.getAttribute('data-sc').split('.');
+      updateCfg((c) => {
+        const it = c.ui.nav.shortcuts[+i];
+        if (it) it[k] = t.value.trim();
+      }, false);
+      return;
+    }
+    if (t.matches('[data-sc-add]')) {
+      if (!t.value) return;
+      const label = t.value;
+      updateCfg((c) => c.ui.nav.shortcuts.push({ emoji: '⭐', label, target: 'menu:' + label }));
+      return;
+    }
     if (t.matches('[data-auto]')) {
       const path = t.getAttribute('data-auto');
       const fb = parseFloat(t.getAttribute('data-fallback'));
@@ -812,6 +1076,38 @@
         break;
       case 'unzap-all':
         updateCfg((c) => (c.layout.hiddenSelectors = []));
+        break;
+      case 'banner-ex': {
+        const v = b.getAttribute('data-v');
+        updateCfg((c) => (c.ui.banner.subtitle = v));
+        break;
+      }
+      case 'nav-move': {
+        const k = b.getAttribute('data-k');
+        const dir = +b.getAttribute('data-dir');
+        updateCfg((c) => {
+          const keys = S.seenNav.map((n) => n.key);
+          const order = (c.ui.nav.order || []).filter((x) => keys.includes(x));
+          for (const x of keys) if (!order.includes(x)) order.push(x);
+          const i = order.indexOf(k);
+          const j = i + dir;
+          if (i < 0 || j < 0 || j >= order.length) return;
+          [order[i], order[j]] = [order[j], order[i]];
+          c.ui.nav.order = order;
+        });
+        break;
+      }
+      case 'nav-reset':
+        updateCfg((c) => {
+          c.ui.nav.order = [];
+          c.ui.nav.hidden = {};
+        });
+        break;
+      case 'sc-del':
+        updateCfg((c) => c.ui.nav.shortcuts.splice(+b.getAttribute('data-i'), 1));
+        break;
+      case 'sc-add-url':
+        updateCfg((c) => c.ui.nav.shortcuts.push({ emoji: '🔗', label: 'Lien', target: 'https://' }));
         break;
       case 'link-add':
         updateCfg((c) => c.widgets.links.items.push({ emoji: '🔗', label: 'Nouveau lien', target: 'https://' }));

@@ -762,3 +762,35 @@ kbd {
     transition: none !important;
   }
 }
+
+/* ---- v2.1 : six onglets, listes dépliables ------------------------- */
+
+body:not(.full) .tab {
+  font-size: 11.5px;
+  padding: 7px 1px 8px;
+}
+
+.list.wl > li,
+.list > li:has(details) {
+  flex-wrap: wrap;
+}
+
+.list details {
+  width: 100%;
+}
+
+.list details > summary {
+  cursor: pointer;
+  margin: 2px 0;
+}
+
+.hint code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--soft);
+  font: 11px ui-monospace, monospace;
+}
+
+.hint .link {
+  font-size: 11.5px;
+}

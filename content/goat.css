@@ -468,6 +468,52 @@ html.pg-layout .AffichagePageAccueil .widgets-global-container section.widget {
 }
 
 /* ===================================================================== */
+/* 2 bis. Raccourcis dans la barre de navigation                          */
+/* ===================================================================== */
+
+.pg-nav-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.8rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pg-nav-sc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3.2rem;
+  padding: 0 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--pg-nav-fg, var(--theme-neutre-legere, #f6f6f6));
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+}
+
+.pg-nav-sc:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.pg-nav-sc-e {
+  font-size: 1.4rem;
+}
+
+.pg-shake {
+  animation: pg-shake 0.4s;
+}
+
+/* ===================================================================== */
 /* 3. Éditeur visuel                                                      */
 /* ===================================================================== */
 
