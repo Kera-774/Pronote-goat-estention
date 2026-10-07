@@ -8,8 +8,8 @@
  *     discret qui floute nom et photo ;
  *   - barre de navigation : onglets et sous-entrées masquables, onglets
  *     réordonnables, raccourcis personnels ajoutés dans la barre ;
- *   - « cases » de lecture derrière les contenus des autres pages, pour que
- *     le texte reste lisible sur une image de fond.
+ *   - fond de lecture (panneau ou cases) derrière les contenus des autres
+ *     pages, pour que le texte reste lisible sur une image de fond.
  *
  * Tout passe par une feuille de style générée (rien n'est supprimé du DOM de
  * Pronote) et quelques attributs data-pg-* posés sur ses éléments. Chargé dès
@@ -89,80 +89,74 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Lisibilité : « cases » derrière les contenus                        */
+  /* Lisibilité : fond derrière les contenus des autres pages            */
   /* ------------------------------------------------------------------ */
 
-  function readabilityActive(cfg) {
+  // '' (rien), 'panel' (toute la zone de contenu) ou 'cards' (un fond par bloc)
+  function readabilityMode(cfg) {
     const R = cfg.ui.readability;
-    if (R.mode === 'off') return false;
-    if (R.mode === 'cards' || R.mode === 'panel') return true;
-    // auto : dès qu'un fond décoratif passe derrière les pages
-    return cfg.style.background.type !== 'theme' || ['glass', 'papier'].includes(cfg.theme.id);
+    if (R.mode === 'off') return '';
+    if (R.mode === 'cards' || R.mode === 'panel') return R.mode;
+    // auto : un panneau dès qu'un fond décoratif passe derrière les pages
+    return cfg.style.background.type !== 'theme' || ['glass', 'papier'].includes(cfg.theme.id) ? 'panel' : '';
   }
 
-  function readabilityCss(cfg) {
+  // Zone de contenu de toutes les pages sauf l'accueil (ses blocs ont déjà
+  // leur fond). Sélecteur purement CSS : aucune section ne peut être oubliée.
+  const CONTENT = 'main.interface_affV_client:not(:has(> .AffichagePageAccueil))';
+
+  function readabilityCss(cfg, mode) {
     const R = cfg.ui.readability;
     const r = PG.theme ? PG.theme.resolve(cfg) : null;
     const base = colorOk(R.color) || (r ? r.tokens.surface : '#ffffff');
-    const a = Math.min(1, Math.max(0.2, Number(R.opacity) || 0.9));
+    const a = Math.min(1, Math.max(0.2, Number(R.opacity) || 0.88));
     const fill = C.rgba(base, a);
-    const pad = Math.min(40, Math.max(0, Number(R.pad) || 0));
-    const rad = Math.min(40, Math.max(0, Number(R.radius) || 0));
-    const blur = Math.min(30, Math.max(0, Number(R.blur) || 0));
-    const shadow = R.shadow ? ', 0 8px 26px rgba(0, 0, 0, 0.28)' : '';
     const text = r ? r.tokens.text : '#000000';
+
+    if (mode === 'panel') {
+      // fond posé sur la zone elle-même : aucune dimension ne change, pas
+      // d'arrondi ni d'anneau, donc aucun raccord visible
+      return ON + ' ' + CONTENT + ' { background: ' + fill + ' !important; color: ' + text + '; }';
+    }
+    const rad = Math.min(24, Math.max(0, Number(R.radius) || 0));
     return (
-      ON + ' [data-pg-card] {\n' +
+      ON + ' ' + CONTENT + ' [data-pg-card] {\n' +
       '  background: ' + fill + ' !important;\n' +
       '  border-radius: ' + rad + 'px !important;\n' +
-      // l'anneau d'ombre de la couleur du fond fait office de marge
-      // intérieure sans modifier les dimensions calculées par Pronote
-      '  box-shadow: 0 0 0 ' + pad + 'px ' + fill + shadow + ' !important;\n' +
       '  color: ' + text + ';\n' +
-      (blur ? '  -webkit-backdrop-filter: blur(' + blur + 'px); backdrop-filter: blur(' + blur + 'px);\n' : '') +
-      '}\n' +
-      ON + ' [data-pg-cardroot] { padding: ' + pad + 'px !important; box-sizing: border-box; }'
+      (R.shadow ? '  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25) !important;\n' : '') +
+      '}'
     );
   }
 
+  // Mode « cases » : un fond par bloc de la page (tous les blocs visibles,
+  // même les plus petits ; trop de blocs → un seul fond pour l'ensemble).
   let cardTimer = null;
   function tagCards() {
     const cfg = core.config;
-    const active = cfg && core.enabled() && readabilityActive(cfg) && !core.isHome();
     const want = new Set();
-    let rootEl = null;
-
-    if (active) {
+    if (cfg && core.enabled() && readabilityMode(cfg) === 'cards' && !core.isHome()) {
       const main = document.querySelector('main.interface_affV_client');
       const root = main && [...main.children].find((c) => !c.classList.contains('AffichagePageAccueil') && core.visible(c));
       if (root) {
-        rootEl = root;
         const good = (el) =>
-          core.visible(el) && !el.classList.contains('sr-only') && !core.isOurs(el) && el.getBoundingClientRect().height > 24;
-        let targets = [root];
-        if (cfg.ui.readability.mode !== 'panel') {
-          const kids = [...root.children].filter(good);
-          if (kids.length >= 1 && kids.length <= 6) targets = kids;
-          // un seul bloc qui englobe tout : on descend d'un niveau
-          if (targets.length === 1 && targets[0] !== root) {
-            const g = [...targets[0].children].filter(good);
-            if (g.length >= 2 && g.length <= 6) targets = g;
-          }
+          !el.classList.contains('sr-only') && !core.isOurs(el) && core.visible(el) &&
+          el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+        let targets = [...root.children].filter(good);
+        if (targets.length === 1) {
+          const g = [...targets[0].children].filter(good);
+          if (g.length >= 2 && g.length <= 8) targets = g;
         }
+        if (!targets.length || targets.length > 8) targets = [root];
         targets.forEach((t) => want.add(t));
       }
     }
-
     document.querySelectorAll('[data-pg-card]').forEach((el) => {
       if (!want.has(el)) el.removeAttribute('data-pg-card');
     });
     want.forEach((el) => {
       if (!el.hasAttribute('data-pg-card')) el.setAttribute('data-pg-card', '');
     });
-    document.querySelectorAll('[data-pg-cardroot]').forEach((el) => {
-      if (el !== rootEl) el.removeAttribute('data-pg-cardroot');
-    });
-    if (rootEl && !rootEl.hasAttribute('data-pg-cardroot')) rootEl.setAttribute('data-pg-cardroot', '');
   }
 
   /* ------------------------------------------------------------------ */
@@ -353,7 +347,8 @@
     }
 
     // ---- cases de lecture
-    if (readabilityActive(cfg)) out.push(readabilityCss(cfg));
+    const rmode = readabilityMode(cfg);
+    if (rmode) out.push(readabilityCss(cfg, rmode));
 
     return out.join('\n');
   }
@@ -368,7 +363,6 @@
     if (!core.enabled()) {
       core.style('ui', '');
       document.querySelectorAll('[data-pg-card]').forEach((el) => el.removeAttribute('data-pg-card'));
-      document.querySelectorAll('[data-pg-cardroot]').forEach((el) => el.removeAttribute('data-pg-cardroot'));
       mountShortcuts();
       return;
     }

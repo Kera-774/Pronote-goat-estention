@@ -411,23 +411,23 @@
     // Lisibilité des autres pages
     const R = c.ui.readability;
     html += '<div class="card"><h3>Lisibilité des autres pages</h3>';
-    html += '<p class="hint">Des « cases » derrière les textes (notes, cahier de textes…) pour qu’ils restent lisibles sur une image de fond.</p>';
+    html += '<p class="hint">Un fond derrière les textes (notes, cahier de textes…) pour qu’ils restent lisibles sur une image de fond. L’accueil n’est pas concerné : ses blocs ont déjà leur fond.</p>';
     html += row(
-      'Cases derrière le texte',
+      'Fond derrière le texte',
       select('data-cfg="ui.readability.mode" data-render="1"', [
-        ['auto', 'Auto (dès qu’il y a un fond)'],
+        ['auto', 'Auto : panneau dès qu’il y a un fond'],
+        ['panel', 'Toujours : un panneau sur toute la page'],
         ['cards', 'Toujours : une case par bloc'],
-        ['panel', 'Toujours : un grand panneau'],
         ['off', 'Jamais']
       ], R.mode)
     );
     if (R.mode !== 'off') {
-      html += colorAuto('ui.readability.color', 'Couleur des cases', tk.surface);
-      html += range('ui.readability.opacity', 'Opacité', 0.2, 1, 0.05, FMT.pct);
-      html += range('ui.readability.radius', 'Arrondi', 0, 32, 1, FMT.px);
-      html += range('ui.readability.pad', 'Marge intérieure', 0, 30, 1, FMT.px);
-      html += range('ui.readability.blur', 'Flou du fond', 0, 20, 1, FMT.px);
-      html += sw('Ombre portée', 'data-cfg="ui.readability.shadow"', R.shadow);
+      html += colorAuto('ui.readability.color', 'Couleur', tk.surface);
+      html += range('ui.readability.opacity', 'Opacité', 0.2, 1, 0.02, FMT.pct);
+      if (R.mode === 'cards') {
+        html += range('ui.readability.radius', 'Arrondi des cases', 0, 24, 1, FMT.px);
+        html += sw('Ombre portée', 'data-cfg="ui.readability.shadow"', R.shadow);
+      }
     }
     html += '</div>';
     return html;

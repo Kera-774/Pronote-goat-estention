@@ -16,8 +16,9 @@ sans jamais casser son fonctionnement :
   page…), textes du bandeau remplaçables (`{salut} {prenom} 👋`), couleurs,
   hauteur, alignement, mode discret ; onglets masquables, réordonnables, sous-menus
   masquables et **raccourcis** ajoutés dans la barre ;
-- **Lisibilité** : des « cases » réglables (couleur, opacité, arrondi, marge,
-  flou) derrière les textes des autres pages quand une image de fond est active ;
+- **Lisibilité** : quand une image de fond est active, un panneau translucide
+  couvre toute la zone de contenu des autres pages (ou, au choix, une case par
+  bloc) — couleur, opacité, arrondi et ombre réglables ;
 - **Nouveaux widgets** : 📢 Informations, 📊 Sondages, 🕒 Horloge & prochain
   cours, ⏳ Compte à rebours, 📈 Moyenne indicative, 🔗 Liens rapides, 🗒️ Post-it ;
 - **Profils** : plusieurs configurations nommées, bascule en un clic, réinitialisation,
@@ -54,7 +55,7 @@ Rien n'est envoyé nulle part : tout reste dans le navigateur.
 | 3. Widgets | Popup › 🧩 Accueil | Active **Horloge**, **Compte à rebours**, **Liens rapides**… Ils apparaissent sur la page d'accueil de Pronote. |
 | 4. Éditeur | Bouton ✏️ en bas à droite de l'accueil, ou <kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>E</kbd> | Glisse un widget par sa poignée ⠿ (autre colonne, plus haut, plus bas). La poignée ◢ en bas à droite règle sa hauteur et sa largeur (double-clic = hauteur auto). 🎨 change son fond, son texte, masque son titre. ▾ le replie, 👁 le masque (grisé pendant l'édition). « ✓ Enregistré » confirme la sauvegarde. |
 | 4 bis. Bandeaux | Popup › 🧭 Barres | Décoche « Logo de l'établissement » : l'image en haut à gauche disparaît. Sous-titre `{salut} {prenom} 👋`, couleurs, hauteur. Décoche des onglets, réordonne-les ↑ ↓, ajoute un raccourci « Mes notes ». Décoche « Bandeau « Page d'accueil » en entier ». |
-| 4 ter. Lisibilité | Style › Arrière-plan › Image, puis ouvre « Mes notes » | Le texte reste lisible dans des cases ; règle-les dans Style › Lisibilité des autres pages. |
+| 4 ter. Lisibilité | Style › Arrière-plan › Image, puis ouvre « Mes notes » | Un panneau translucide couvre toute la page : le texte reste lisible. Style › Lisibilité des autres pages : couleur, opacité, ou mode « une case par bloc ». |
 | 5. Masquer un élément | Éditeur › 🎯 Masquer un élément | Survole un bloc (cadre rouge), clique, confirme. « ▲ Bloc parent » élargit la sélection. Il se réaffiche depuis la liste « Éléments masqués ». |
 | 6. Informations / Sondages | Widgets 📢 et 📊 › bouton ↻ | L'extension ouvre « Informations & sondages », relève la liste puis revient seule à l'accueil. Les widgets affichent tout (lu / non lu, « À répondre »). |
 | 7. Profils | Popup › 👤 Profils | **＋ Copie du profil actif**, nomme-le « Week-end », passe-le en Hacker ; bascule avec le menu déroulant en haut du popup. **↺ Réinitialiser le profil actif** remet tout à zéro. |
@@ -114,8 +115,10 @@ icons/                   icônes 16 → 128 px
 - Les textes du bandeau sont remplacés en CSS (`::after`), sans toucher au DOM ;
   les onglets reçoivent un simple attribut `data-pg-nav` pour être masqués ou
   réordonnés (`order` CSS sur la barre flex de Pronote).
-- Les « cases » de lecture utilisent un anneau `box-shadow` de la couleur du fond
-  comme marge : les dimensions calculées par Pronote ne bougent pas.
+- Le panneau de lecture est un simple fond posé sur la zone de contenu
+  (`main.interface_affV_client:not(:has(> .AffichagePageAccueil))`) : aucune
+  section ne peut être oubliée et les dimensions calculées par Pronote ne
+  bougent pas.
 
 **Agencement sans déplacer un seul nœud de Pronote**
 
