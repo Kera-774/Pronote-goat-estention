@@ -1,0 +1,501 @@
+/* Pronote GOAT — styles de la page d'accueil
+ *   1. grille personnalisée (moteur d'agencement)
+ *   2. widgets de l'extension
+ *   3. états de l'éditeur visuel
+ * Les couleurs passent par les variables de Pronote (--theme-*, --color-*) :
+ * tout suit le thème actif, y compris le thème d'origine et son mode sombre.
+ */
+
+/* ===================================================================== */
+/* 1. Grille personnalisée                                                */
+/* ===================================================================== */
+
+html.pg-layout .AffichagePageAccueil .widgets-global-container {
+  display: grid !important;
+  grid-template-columns: repeat(var(--pg-cols, 3), minmax(0, 1fr)) !important;
+  grid-template-areas: none !important;
+  grid-auto-rows: 4px !important;
+  grid-auto-flow: row dense !important;
+  column-gap: var(--pg-gap, 24px) !important;
+  row-gap: 0 !important;
+  align-items: start !important;
+  justify-content: stretch !important;
+}
+
+/* les colonnes natives s'effacent : chaque widget devient élément de grille */
+html.pg-layout .AffichagePageAccueil .widgets-global-container .wrapper-cols,
+html.pg-layout .AffichagePageAccueil .widgets-global-container .cols-wrap1,
+html.pg-layout .AffichagePageAccueil .widgets-global-container .cols-wrap2 {
+  display: contents !important;
+}
+
+html.pg-layout .AffichagePageAccueil .widgets-global-container section.widget {
+  grid-column: var(--pg-col, auto) / span var(--pg-span, 1) !important;
+  grid-row-end: span var(--pg-rows, 40) !important;
+  order: var(--pg-order, 0);
+  align-self: start !important;
+  height: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* widget replié : seul l'en-tête reste */
+.AffichagePageAccueil section.widget[data-pg-collapsed] > :not(header) {
+  display: none !important;
+}
+
+.AffichagePageAccueil section.widget[data-pg-collapsed] > header {
+  opacity: 0.85;
+}
+
+/* ===================================================================== */
+/* 2. Widgets de l'extension                                              */
+/* ===================================================================== */
+
+.pg-widget {
+  min-width: 0;
+}
+
+.pg-widget > header {
+  gap: 0.6rem;
+}
+
+.pg-widget > header h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pg-widget .pg-wicon {
+  font-size: 1.1em;
+}
+
+.pg-widget .pg-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--theme-moyen1);
+  color: var(--color-background, #fff);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.pg-widget .pg-count-badge[hidden] {
+  display: none;
+}
+
+.pg-widget .pg-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pg-widget .pg-btn {
+  min-width: 2.8rem;
+  height: 2.6rem;
+  padding: 0 0.9rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--theme-neutre-claire);
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--taille-s, 1.1rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pg-widget .pg-btn:hover {
+  background: var(--theme-claire);
+}
+
+.pg-widget .pg-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pg-widget .pg-spin {
+  animation: pg-spin 0.9s linear infinite;
+}
+
+@keyframes pg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pg-widget .pg-gear {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--theme-neutre-foncee);
+  font-size: 1.4rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pg-widget:hover .pg-gear,
+.pg-widget .pg-gear:focus-visible {
+  opacity: 1;
+}
+
+.pg-widget .pg-gear:hover {
+  background: var(--theme-neutre-legere2);
+}
+
+.pg-widget .pg-wbody {
+  padding: 0.4rem 1.6rem 1.4rem;
+  font-size: var(--taille-m, 1.3rem);
+  color: var(--color-text);
+  overflow: visible;
+}
+
+.pg-widget .pg-muted {
+  color: var(--theme-neutre-foncee);
+  font-size: 0.92em;
+}
+
+.pg-widget .pg-cap::first-letter {
+  text-transform: uppercase;
+}
+
+.pg-widget .pg-center {
+  text-align: center;
+}
+
+.pg-widget .pg-big {
+  font-size: 3.4rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--theme-foncee);
+  font-variant-numeric: tabular-nums;
+}
+
+.pg-widget .pg-big small {
+  font-size: 0.45em;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.pg-widget .pg-foot {
+  margin-top: 0.8rem;
+  font-size: 1.05rem;
+  color: var(--theme-neutre-moyen3);
+  text-align: right;
+}
+
+.pg-widget .pg-more {
+  margin-top: 0.4rem;
+  font-size: 1.1rem;
+  color: var(--theme-neutre-foncee);
+  text-align: center;
+}
+
+/* état vide */
+.pg-widget .pg-empty {
+  padding: 1.2rem 0.4rem;
+  text-align: center;
+  color: var(--theme-neutre-foncee);
+}
+
+.pg-widget .pg-empty p {
+  margin: 0.4rem 0;
+}
+
+.pg-widget .pg-empty-ico {
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+/* listes : informations, sondages */
+.pg-widget .pg-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-widget .pg-item {
+  padding: 0.8rem 0.6rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--theme-neutre-legere2);
+}
+
+.pg-widget .pg-item:last-child {
+  border-bottom: 0;
+}
+
+.pg-widget .pg-item:hover,
+.pg-widget .pg-item:focus-visible {
+  background: var(--theme-neutre-legere);
+  outline: none;
+}
+
+.pg-widget .pg-item-t {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 500;
+}
+
+.pg-widget .pg-unread .pg-item-t {
+  font-weight: 700;
+}
+
+.pg-widget .pg-dot {
+  flex: none;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--theme-moyen1);
+}
+
+.pg-widget .pg-item-m {
+  margin-top: 0.2rem;
+  font-size: 1.1rem;
+  color: var(--theme-neutre-foncee);
+}
+
+.pg-widget .pg-item-ex {
+  margin-top: 0.3rem;
+  font-size: 1.15rem;
+  color: var(--theme-neutre-sombre);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pg-widget .pg-badge {
+  margin-left: auto;
+  flex: none;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.pg-widget .pg-badge.pg-ok {
+  background: var(--color-success-light, #d6faca);
+  color: var(--color-success, #1c5700);
+}
+
+.pg-widget .pg-badge.pg-warn {
+  background: var(--color-error-light, #ffdbdb);
+  color: var(--color-error, #720000);
+}
+
+/* horloge & cours */
+.pg-widget .pg-clock,
+.pg-widget .pg-count,
+.pg-widget .pg-avg {
+  text-align: center;
+  padding: 0.4rem 0 0.8rem;
+}
+
+.pg-widget .pg-course {
+  margin-top: 0.8rem;
+  padding: 0.8rem 1rem;
+  border-left: 0.5rem solid var(--c, var(--theme-moyen1));
+  border-radius: 0.6rem;
+  background: var(--theme-neutre-legere);
+}
+
+.pg-widget .pg-course.pg-next {
+  opacity: 0.88;
+}
+
+.pg-widget .pg-course .pg-cap {
+  font-size: 1.05rem;
+  color: var(--theme-neutre-foncee);
+  font-weight: 600;
+}
+
+.pg-widget .pg-course-t {
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.pg-widget .pg-progress {
+  height: 0.6rem;
+  margin-top: 0.6rem;
+  border-radius: 999px;
+  background: var(--theme-neutre-claire);
+  overflow: hidden;
+}
+
+.pg-widget .pg-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c, var(--theme-moyen1));
+}
+
+/* moyenne */
+.pg-widget .pg-good {
+  color: var(--color-green-moyen, #238600) !important;
+}
+
+.pg-widget .pg-mid {
+  color: var(--color-orange-moyen, #aa6600) !important;
+}
+
+.pg-widget .pg-low {
+  color: var(--color-red-moyen, #df2121) !important;
+}
+
+.pg-widget .pg-bars {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-widget .pg-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) 1fr 3.6rem;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.3rem 0;
+  font-size: 1.15rem;
+}
+
+.pg-widget .pg-bar-l {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pg-widget .pg-bar {
+  height: 0.8rem;
+  border-radius: 999px;
+  background: var(--theme-neutre-claire);
+  overflow: hidden;
+}
+
+.pg-widget .pg-bar span {
+  display: block;
+  height: 100%;
+  background: var(--theme-moyen1);
+  border-radius: inherit;
+}
+
+.pg-widget .pg-bars b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* liens rapides */
+.pg-widget .pg-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.8rem;
+}
+
+.pg-widget .pg-link {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 4rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--theme-neutre-claire);
+  border-radius: 0.8rem;
+  background: var(--theme-neutre-light);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.pg-widget .pg-link:hover {
+  background: var(--theme-claire);
+  border-color: var(--theme-moyen1);
+  transform: translateY(-1px);
+}
+
+.pg-widget .pg-link-e {
+  font-size: 1.6rem;
+}
+
+.pg-widget .pg-ext {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+.pg-widget .pg-shake {
+  animation: pg-shake 0.4s;
+}
+
+@keyframes pg-shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* post-it */
+.pg-widget .pg-postit {
+  display: block;
+  width: 100%;
+  min-height: 14rem;
+  box-sizing: border-box;
+  padding: 1.2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: var(--pg-postit, #fde68a);
+  color: #3f3a1e;
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1.5;
+  resize: vertical;
+  box-shadow: inset 0 -2rem 2rem -2rem rgba(0, 0, 0, 0.15);
+}
+
+.pg-widget .pg-postit:focus {
+  outline: 2px solid var(--theme-moyen1);
+}
+
+/* ===================================================================== */
+/* 3. Éditeur visuel                                                      */
+/* ===================================================================== */
+
+html.pg-editing .AffichagePageAccueil section.widget {
+  transition: opacity 0.15s;
+}
+
+html.pg-editing .AffichagePageAccueil section.widget[data-pg-dragging] {
+  opacity: 0.3 !important;
+}
+
+/* un widget replié ou masqué reste manipulable pendant l'édition */
+html.pg-editing .AffichagePageAccueil section.widget[data-pg-collapsed] {
+  min-height: 5rem;
+}
+
+html.pg-zapping,
+html.pg-zapping * {
+  cursor: crosshair !important;
+}
+
+/* l'hôte de l'interface ne doit jamais gêner la mise en page */
+pg-ui.pg-ui {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: 2147483600 !important;
+  display: block !important;
+}

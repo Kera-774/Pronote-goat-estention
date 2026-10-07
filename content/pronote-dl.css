@@ -1,0 +1,449 @@
+/* Pronote GOAT — styles des modules « Téléchargement groupé / export JSON »
+ * et « Devoirs personnels » (repris de pronote-dl).
+ * Les outils s'insèrent dans les titres de section de Pronote : les styles
+ * restent discrets, héritent de la couleur du titre et ne touchent à rien
+ * d'autre. Toutes les classes sont préfixées « pdl- ».
+ */
+
+/* Groupe de boutons à droite d'un titre ------------------------------ */
+
+.pdl-tools {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  vertical-align: middle;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pdl-b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 24px;
+  min-width: 26px;
+  padding: 0 6px;
+  margin: 0;
+  border: 1px solid;
+  border-color: color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  .pdl-b {
+    border-color: rgba(128, 128, 128, 0.4);
+    background: rgba(128, 128, 128, 0.12);
+  }
+}
+
+.pdl-b:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.pdl-b:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pdl-b svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  flex: none;
+}
+
+.pdl-b.pdl-on {
+  background: #2ecc71;
+  border-color: #27ae60;
+  color: #07331c;
+}
+
+.pdl-b.pdl-on svg {
+  fill: #07331c;
+}
+
+.pdl-n {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdl-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.pdl-all {
+  padding: 0 5px;
+}
+
+.pdl-all input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2a7fd4;
+}
+
+.pdl-st {
+  font-size: 11px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.pdl-st.pdl-ok {
+  color: #1e9e57;
+  opacity: 1;
+}
+
+.pdl-st.pdl-warn {
+  color: #d98324;
+  opacity: 1;
+}
+
+/* Case à cocher devant chaque document -------------------------------- */
+
+.pdl-cb-wrap {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.pdl-cb-wrap .pdl-cb {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2a7fd4;
+  flex: none;
+}
+
+.pdl-cb-wrap .pdl-mark {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Popovers (période, menu JSON) --------------------------------------- */
+
+.pdl-pop {
+  all: initial;
+  /* la zone de contenu de Pronote défile indépendamment de la fenêtre :
+     en « fixed », le popover se place d'après le viewport, sans décalage */
+  position: fixed;
+  z-index: 2147483001;
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  min-width: 232px;
+  background: #fff;
+  color: #14304a;
+  border: 1px solid #c8d6e4;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+}
+
+.pdl-pop * {
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: inherit;
+  color: #14304a;
+}
+
+.pdl-pop-t {
+  font-weight: 700;
+}
+
+.pdl-pop label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pdl-pop input[type="date"] {
+  border: 1px solid #c8d6e4;
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: #fff;
+}
+
+.pdl-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pdl-presets button {
+  border: 1px solid #c8d6e4;
+  background: #f2f7fc;
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.pdl-presets button:hover {
+  background: #e3eefa;
+}
+
+.pdl-pop-a {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pdl-apply {
+  border: 0;
+  background: #2a7fd4;
+  color: #fff !important;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pdl-apply:hover {
+  background: #3a91e8;
+}
+
+.pdl-mi {
+  text-align: left;
+  border: 1px solid #dbe6f1;
+  background: #f7fafd;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.pdl-mi:hover {
+  background: #e8f1fb;
+  border-color: #b9d2ea;
+}
+
+.pdl-note {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ===================================================================== */
+/* Devoirs personnels                                                     */
+/* ===================================================================== */
+
+.pdl-b.pdl-add {
+  color: inherit;
+}
+
+/* le titre d'onglet n'est pas flex : on garde le bouton sur la ligne */
+[class*="titre-onglet"] .pdl-tools {
+  margin-left: 14px;
+  vertical-align: middle;
+}
+
+[class*="cta-conteneur"] .pdl-tools {
+  margin-left: 0;
+  margin-right: 6px;
+}
+
+/* Boutons d'édition, visibles au survol du devoir --------------------- */
+
+.pdl-perso {
+  position: relative;
+}
+
+.pdl-ancre {
+  position: relative;
+}
+
+.pdl-actions {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 7px;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 5;
+}
+
+.pdl-actions.pdl-actions-coin {
+  right: 2px;
+  top: 2px;
+  transform: none;
+  margin-right: 0;
+}
+
+.pdl-perso:hover .pdl-actions,
+.pdl-actions:focus-within {
+  opacity: 1;
+}
+
+.pdl-a {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #3d5468;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pdl-a:hover {
+  background: #fff;
+  border-color: #8fa8bd;
+  color: #14304a;
+}
+
+.pdl-a.pdl-del:hover {
+  border-color: #e05a5a;
+  color: #c0392b;
+}
+
+/* Formulaire ---------------------------------------------------------- */
+
+.pdl-form {
+  min-width: 296px;
+  max-width: 330px;
+  gap: 7px;
+  max-height: 88vh;
+  overflow: auto;
+}
+
+.pdl-f {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pdl-f.pdl-col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.pdl-f.pdl-check {
+  justify-content: flex-start;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.pdl-form select,
+.pdl-form input[type="text"],
+.pdl-form input[type="date"],
+.pdl-form textarea {
+  border: 1px solid #c8d6e4;
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: #fff;
+  font: inherit;
+  color: #14304a;
+  max-width: 172px;
+}
+
+.pdl-form textarea {
+  max-width: none;
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.35;
+}
+
+.pdl-form input[type="color"] {
+  width: 44px;
+  height: 26px;
+  padding: 1px;
+  border: 1px solid #c8d6e4;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pdl-form input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #2a7fd4;
+  cursor: pointer;
+}
+
+.pdl-pop-a {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pdl-suppr {
+  border: 1px solid #e0b4b4;
+  background: #fdf3f3;
+  color: #c0392b !important;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-right: auto;
+}
+
+.pdl-suppr:hover {
+  background: #f9e3e3;
+}
+
+/* ===================================================================== */
+/* Thèmes sombres de Pronote GOAT                                         */
+/* ===================================================================== */
+
+html[data-pg-dark="1"] .pdl-pop {
+  background: var(--pg-surface, #1f2937);
+  color: var(--pg-text, #f3f4f6);
+  border-color: var(--pg-border, #374151);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+}
+
+html[data-pg-dark="1"] .pdl-pop * {
+  color: var(--pg-text, #f3f4f6);
+}
+
+html[data-pg-dark="1"] .pdl-pop input,
+html[data-pg-dark="1"] .pdl-pop select,
+html[data-pg-dark="1"] .pdl-pop textarea,
+html[data-pg-dark="1"] .pdl-presets button,
+html[data-pg-dark="1"] .pdl-mi {
+  background: var(--pg-surface2, #111827);
+  border-color: var(--pg-border, #374151);
+}
+
+html[data-pg-dark="1"] .pdl-apply {
+  background: var(--pg-accent, #2a7fd4);
+  color: var(--pg-on-accent, #ffffff) !important;
+}
+
+html[data-pg-dark="1"] .pdl-a {
+  background: var(--pg-surface2, #111827);
+  color: var(--pg-text, #f3f4f6);
+}

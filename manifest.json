@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "Pronote GOAT — Thèmes, widgets & outils",
+  "short_name": "Pronote GOAT",
+  "version": "2.0.0",
+  "description": "Personnalise Pronote : thèmes Dev/Hacker…, éditeur glisser-déposer, widgets Infos & Sondages, profils, téléchargements.",
+  "minimum_chrome_version": "111",
+  "permissions": ["storage", "downloads"],
+  "host_permissions": ["*://*/pronote/*", "*://*.index-education.net/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Pronote GOAT",
+    "default_popup": "ui/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "ui/options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "toggle-editor": {
+      "suggested_key": {
+        "default": "Alt+Shift+E"
+      },
+      "description": "Ouvrir / fermer l'éditeur visuel sur Pronote"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/pronote/*", "*://*.index-education.net/*"],
+      "js": ["page/ctx.js"],
+      "world": "MAIN",
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*/pronote/*", "*://*.index-education.net/*"],
+      "js": ["lib/defaults.js", "lib/color.js", "lib/storage.js", "content/core.js", "content/theme.js"],
+      "css": ["content/themes.css", "content/goat.css", "content/pronote-dl.css"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*/pronote/*", "*://*.index-education.net/*"],
+      "js": [
+        "content/layout.js",
+        "content/infos.js",
+        "content/widgets.js",
+        "content/editor.js",
+        "content/pronote-dl.js",
+        "content/devoirs.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
