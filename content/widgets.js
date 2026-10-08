@@ -306,34 +306,75 @@
     };
   };
 
+  // Moyenne indicative :
+  //   - moyenne de chaque matière = notes ramenées sur 20, pondérées par
+  //     leur coefficient (coef. 0 = note non comptée, coef. inconnu = 1) ;
+  //   - moyenne générale = moyenne des matières, qui comptent toutes autant.
+  // Source : toutes les notes relevées sur « Détail de mes notes » (avec les
+  // coefficients), sinon les dernières notes de l'accueil.
   R.average = function (cfg) {
-    const notes = src.notes();
-    if (!notes || !notes.length) {
-      return { body: '<div class="pg-empty"><div class="pg-empty-ico">📈</div><p>Aucune note chiffrée dans « Dernières notes ».</p></div>' };
+    const page = PG.notes && PG.notes.current();
+    let grades;
+    let fromPage = false;
+    if (page && page.grades.length) {
+      grades = page.grades;
+      fromPage = true;
+    } else {
+      grades = (src.notes() || []).map((n) => ({ subject: n.subject, value: n.value, bareme: n.bareme, coef: null }));
     }
-    const avg = notes.reduce((s, n) => s + n.sur20, 0) / notes.length;
-    const tone = avg >= 14 ? 'pg-good' : avg >= 10 ? 'pg-mid' : 'pg-low';
+    const syncBtn = '<button type="button" class="link pg-inline-sync" data-act="sync">↻ relever toutes mes notes et leurs coefficients</button>';
+    if (!grades.length) {
+      return {
+        body: '<div class="pg-empty"><div class="pg-empty-ico">📈</div><p>Aucune note chiffrée pour l’instant.</p><p>' + syncBtn + '</p></div>'
+      };
+    }
+
+    const by = {};
+    let unknown = 0;
+    for (const g of grades) {
+      const coef = g.coef === null || g.coef === undefined ? 1 : +g.coef;
+      if (g.coef === null || g.coef === undefined) unknown++;
+      const s = (by[g.subject] = by[g.subject] || { w: 0, sum: 0, n: 0 });
+      s.n++;
+      if (!(coef > 0) || !(g.bareme > 0)) continue; // coef. 0 : non comptée
+      s.w += coef;
+      s.sum += coef * (g.value / g.bareme) * 20;
+    }
+    const subjects = Object.entries(by)
+      .map(([name, s]) => ({ name, n: s.n, avg: s.w > 0 ? Math.min(20, s.sum / s.w) : null }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    const counted = subjects.filter((x) => x.avg !== null);
+    if (!counted.length) {
+      return { body: '<div class="pg-empty"><div class="pg-empty-ico">📈</div><p>Toutes les notes ont un coefficient 0.</p></div>' };
+    }
+    const avg = counted.reduce((t, x) => t + x.avg, 0) / counted.length;
+    const tone = (v) => (v >= 14 ? 'pg-good' : v >= 10 ? 'pg-mid' : 'pg-low');
+
+    const meta = [counted.length + ' matière' + (counted.length > 1 ? 's' : '')];
+    if (fromPage) meta.push(page.period, grades.length + ' notes', 'relevé ' + relative(page.syncedAt || page.updatedAt));
+    else meta.push('dernières notes de l’accueil');
+
     let out =
-      '<div class="pg-avg"><div class="pg-big ' + tone + '">' + fr(avg, 2) + '<small> /20</small></div>' +
-      '<div class="pg-muted">sur les ' + notes.length + ' dernière(s) note(s)</div></div>';
+      '<div class="pg-avg"><div class="pg-big ' + tone(avg) + '">' + fr(avg, 2) + '<small> /20</small></div>' +
+      '<div class="pg-muted">' + meta.map(esc).join(' · ') + '</div></div>';
+
     if (cfg.bySubject) {
-      const by = {};
-      for (const n of notes) (by[n.subject] = by[n.subject] || []).push(n.sur20);
       out +=
         '<ul class="pg-bars">' +
-        Object.entries(by)
-          .map(([s, v]) => {
-            const a = v.reduce((x, y) => x + y, 0) / v.length;
-            return (
-              '<li><span class="pg-bar-l" title="' + esc(s) + '">' + esc(s) + '</span>' +
-              '<span class="pg-bar"><span style="width:' + Math.round((a / 20) * 100) + '%"></span></span>' +
-              '<b>' + fr(a) + '</b></li>'
-            );
-          })
+        subjects
+          .map((x) =>
+            '<li><span class="pg-bar-l" title="' + esc(x.name + ' — ' + x.n + ' note(s)') + '">' + esc(x.name) + '</span>' +
+            '<span class="pg-bar"><span class="' + (x.avg === null ? '' : tone(x.avg)) + '" style="width:' + (x.avg === null ? 0 : Math.round((x.avg / 20) * 100)) + '%"></span></span>' +
+            '<b>' + (x.avg === null ? '—' : fr(x.avg, 2)) + '</b></li>'
+          )
           .join('') +
         '</ul>';
     }
-    out += '<div class="pg-foot">Indicatif : sans coefficients, notes ramenées sur 20.</div>';
+
+    let foot = 'Chaque matière compte autant ; dans une matière, les notes sont pondérées par leur coefficient.';
+    if (!fromPage) foot += '<br>Coefficients inconnus (comptés 1). ' + syncBtn;
+    else if (unknown) foot += '<br>' + unknown + ' note(s) sans coefficient relevé, comptée(s) 1. ' + syncBtn;
+    out += '<div class="pg-foot">' + foot + '</div>';
     return { body: out };
   };
 
@@ -394,6 +435,9 @@
     if (id === 'infos' || id === 'sondages') {
       return btn('sync', '↻', 'Synchroniser avec Pronote') + btn('all', 'Tout voir', 'Ouvrir Informations & sondages');
     }
+    if (id === 'average') {
+      return btn('sync', '↻', 'Relever toutes les notes et leurs coefficients') + btn('all', 'Tout voir', 'Ouvrir Détail de mes notes');
+    }
     return '';
   }
 
@@ -436,9 +480,13 @@
     } else if (act === 'sync') {
       el.disabled = true;
       el.classList.add('pg-spin');
-      PG.infos && PG.infos.sync();
+      if (id === 'average') {
+        if (PG.editor) PG.editor.toast('Relevé des notes en cours… (quelques secondes)');
+        PG.notes && PG.notes.sync();
+      } else if (PG.infos) PG.infos.sync();
     } else if (act === 'all' || act === 'open') {
-      PG.infos && PG.infos.open();
+      if (id === 'average') PG.notes && PG.notes.open();
+      else if (PG.infos) PG.infos.open();
     } else if (act === 'link') {
       const l = (core.config.widgets.links.items || [])[+el.getAttribute('data-i')];
       if (!l) return;
@@ -565,6 +613,17 @@
   core.on('home', widgets.mount);
   core.onDom(widgets.mount, 250);
   core.on('infos-local', () => widgets.render(['infos', 'sondages']));
+  core.on('notes-local', () => widgets.render(['average']));
+  core.on('notes-synced', (r) => {
+    const e = widgets.mounted.get('average');
+    e && e.section.querySelectorAll('[data-act="sync"]').forEach((b) => {
+      b.disabled = false;
+      b.classList.remove('pg-spin');
+    });
+    if (!PG.editor) return;
+    if (r && r.ok) PG.editor.toast(r.count + ' notes relevées, ' + r.coefs + ' coefficient(s) lu(s)');
+    else PG.editor.toast((r && r.error) || 'Relevé des notes impossible', 'warn');
+  });
   core.on('infos-synced', (r) => {
     for (const id of ['infos', 'sondages']) {
       const e = widgets.mounted.get(id);

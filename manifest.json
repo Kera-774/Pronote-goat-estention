@@ -58,6 +58,7 @@
       "js": [
         "content/layout.js",
         "content/infos.js",
+        "content/notes.js",
         "content/widgets.js",
         "content/editor.js",
         "content/pronote-dl.js",

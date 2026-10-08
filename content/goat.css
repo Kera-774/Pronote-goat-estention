@@ -545,3 +545,18 @@ pg-ui.pg-ui {
   z-index: 2147483600 !important;
   display: block !important;
 }
+
+/* moyenne : couleur des barres selon la note, lien de relevé */
+.pg-widget .pg-bar span.pg-good { background: var(--color-green-moyen, #238600); }
+.pg-widget .pg-bar span.pg-mid { background: var(--color-orange-moyen, #aa6600); }
+.pg-widget .pg-bar span.pg-low { background: var(--color-red-moyen, #df2121); }
+
+.pg-widget .pg-inline-sync {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--theme-foncee);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

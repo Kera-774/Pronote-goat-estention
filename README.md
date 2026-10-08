@@ -84,6 +84,7 @@ content/                 scripts de contenu (monde isolé)
   layout.js              agencement en grille « maçonnerie », masquage
   widgets.js             widgets de l'accueil
   infos.js               relevé des Informations et Sondages
+  notes.js               relevé des notes et de leurs coefficients (Détail de mes notes)
   editor.js              éditeur visuel (Shadow DOM)
   goat.css               grille, widgets, états de l'éditeur
   pronote-dl.js/.css     téléchargement groupé & export JSON (repris de pronote-dl)
@@ -171,7 +172,9 @@ dépassement du quota de synchronisation (8 Ko par profil), rien n'est perdu.
   (CSP) de certains Pronote : importer l'image depuis l'ordinateur fonctionne toujours.
 - Aucune police n'est téléchargée : celles proposées doivent exister sur l'appareil
   (des replis sûrs sont prévus).
-- La moyenne est **indicative** : dernières notes affichées, ramenées sur 20, sans
-  coefficients.
+- La moyenne est **indicative** : notes ramenées sur 20 et pondérées par leur
+  coefficient dans chaque matière, puis moyenne des matières (toutes au même
+  poids). Sans relevé (↻ du widget), elle se base sur les dernières notes de
+  l'accueil, coefficient 1.
 - Si Pronote modifie sa structure, le relevé des informations peut devoir être
   ajusté : le diagnostic intégré aide à le faire.
