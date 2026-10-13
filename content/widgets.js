@@ -307,51 +307,66 @@
   };
 
   // Moyenne indicative :
-  //   - moyenne de chaque matière = notes ramenées sur 20, pondérées par
-  //     leur coefficient (coef. 0 = note non comptée, coef. inconnu = 1) ;
+  //   - moyenne de chaque matière = celle qu'affiche Pronote (Détail de mes
+  //     notes, vue « Par matière ») ;
   //   - moyenne générale = moyenne des matières, qui comptent toutes autant.
-  // Source : toutes les notes relevées sur « Détail de mes notes » (avec les
-  // coefficients), sinon les dernières notes de l'accueil.
+  // Si l'établissement n'affiche pas les moyennes : estimation d'après les
+  // notes relevées (pondérées par leur coefficient ; coef. 0 = non comptée,
+  // coef. inconnu = 1), sinon d'après les dernières notes de l'accueil.
   R.average = function (cfg) {
     const page = PG.notes && PG.notes.current();
-    let grades;
-    let fromPage = false;
-    if (page && page.grades.length) {
-      grades = page.grades;
-      fromPage = true;
-    } else {
-      grades = (src.notes() || []).map((n) => ({ subject: n.subject, value: n.value, bareme: n.bareme, coef: null }));
-    }
-    const syncBtn = '<button type="button" class="link pg-inline-sync" data-act="sync">↻ relever toutes mes notes et leurs coefficients</button>';
-    if (!grades.length) {
-      return {
-        body: '<div class="pg-empty"><div class="pg-empty-ico">📈</div><p>Aucune note chiffrée pour l’instant.</p><p>' + syncBtn + '</p></div>'
-      };
-    }
+    const syncBtn = (label) =>
+      '<button type="button" class="link pg-inline-sync" data-act="sync">↻ ' + esc(label || 'relever les moyennes de Pronote') + '</button>';
+    const tone = (v) => (v >= 14 ? 'pg-good' : v >= 10 ? 'pg-mid' : 'pg-low');
+    const count = {};
+    if (page) for (const g of page.grades) count[g.subject] = (count[g.subject] || 0) + 1;
 
-    const by = {};
-    let unknown = 0;
-    for (const g of grades) {
-      const coef = g.coef === null || g.coef === undefined ? 1 : +g.coef;
-      if (g.coef === null || g.coef === undefined) unknown++;
-      const s = (by[g.subject] = by[g.subject] || { w: 0, sum: 0, n: 0 });
-      s.n++;
-      if (!(coef > 0) || !(g.bareme > 0)) continue; // coef. 0 : non comptée
-      s.w += coef;
-      s.sum += coef * (g.value / g.bareme) * 20;
+    // 1. moyennes par matière affichées par Pronote (vue « Par matière »)
+    let mode = 'pronote';
+    let subjects = page
+      ? Object.entries(page.subjects || {})
+          .filter(([, v]) => typeof v === 'number' && v >= 0 && v <= 20)
+          .map(([name, avg]) => ({ name, avg, n: count[name] || 0 }))
+      : [];
+
+    // 2. secours : calcul d'après les notes, pondérées par leur coefficient
+    if (!subjects.length) {
+      let grades;
+      if (page && page.grades.length) {
+        grades = page.grades;
+        mode = 'calc';
+      } else {
+        grades = (src.notes() || []).map((n) => ({ subject: n.subject, value: n.value, bareme: n.bareme, coef: null }));
+        mode = 'home';
+      }
+      if (!grades.length) {
+        return {
+          body: '<div class="pg-empty"><div class="pg-empty-ico">📈</div><p>Aucune moyenne pour l’instant.</p><p>' + syncBtn() + '</p></div>'
+        };
+      }
+      const by = {};
+      for (const g of grades) {
+        const coef = g.coef === null || g.coef === undefined ? 1 : +g.coef;
+        const s = (by[g.subject] = by[g.subject] || { w: 0, sum: 0, n: 0 });
+        s.n++;
+        if (!(coef > 0) || !(g.bareme > 0)) continue; // coef. 0 : non comptée
+        s.w += coef;
+        s.sum += coef * (g.value / g.bareme) * 20;
+      }
+      subjects = Object.entries(by).map(([name, s]) => ({ name, n: s.n, avg: s.w > 0 ? Math.min(20, s.sum / s.w) : null }));
     }
-    const subjects = Object.entries(by)
-      .map(([name, s]) => ({ name, n: s.n, avg: s.w > 0 ? Math.min(20, s.sum / s.w) : null }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    subjects.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+    // moyenne générale : chaque matière compte autant
     const counted = subjects.filter((x) => x.avg !== null);
     if (!counted.length) {
       return { body: '<div class="pg-empty"><div class="pg-empty-ico">📈</div><p>Toutes les notes ont un coefficient 0.</p></div>' };
     }
     const avg = counted.reduce((t, x) => t + x.avg, 0) / counted.length;
-    const tone = (v) => (v >= 14 ? 'pg-good' : v >= 10 ? 'pg-mid' : 'pg-low');
 
     const meta = [counted.length + ' matière' + (counted.length > 1 ? 's' : '')];
-    if (fromPage) meta.push(page.period, grades.length + ' notes', 'relevé ' + relative(page.syncedAt || page.updatedAt));
+    if (mode === 'pronote') meta.push(page.period, 'moyennes Pronote', 'relevées ' + relative(page.avgAt || page.updatedAt));
+    else if (mode === 'calc') meta.push(page.period, page.grades.length + ' notes', 'relevé ' + relative(page.syncedAt || page.updatedAt));
     else meta.push('dernières notes de l’accueil');
 
     let out =
@@ -363,7 +378,7 @@
         '<ul class="pg-bars">' +
         subjects
           .map((x) =>
-            '<li><span class="pg-bar-l" title="' + esc(x.name + ' — ' + x.n + ' note(s)') + '">' + esc(x.name) + '</span>' +
+            '<li><span class="pg-bar-l" title="' + esc(x.name + (x.n ? ' — ' + x.n + ' note(s)' : '')) + '">' + esc(x.name) + '</span>' +
             '<span class="pg-bar"><span class="' + (x.avg === null ? '' : tone(x.avg)) + '" style="width:' + (x.avg === null ? 0 : Math.round((x.avg / 20) * 100)) + '%"></span></span>' +
             '<b>' + (x.avg === null ? '—' : fr(x.avg, 2)) + '</b></li>'
           )
@@ -371,9 +386,18 @@
         '</ul>';
     }
 
-    let foot = 'Chaque matière compte autant ; dans une matière, les notes sont pondérées par leur coefficient.';
-    if (!fromPage) foot += '<br>Coefficients inconnus (comptés 1). ' + syncBtn;
-    else if (unknown) foot += '<br>' + unknown + ' note(s) sans coefficient relevé, comptée(s) 1. ' + syncBtn;
+    let foot;
+    if (mode === 'pronote') {
+      foot = 'Moyenne des moyennes par matière de Pronote ; chaque matière compte autant.';
+      if (page.newGrades) {
+        foot += '<br>' + page.newGrades + ' nouvelle(s) note(s) depuis le relevé. ' + syncBtn('actualiser les moyennes');
+      }
+    } else {
+      foot =
+        'Moyennes de Pronote pas encore relevées : estimation d’après ' +
+        (mode === 'calc' ? 'les notes (pondérées par leur coefficient)' : 'les dernières notes de l’accueil') +
+        ', chaque matière compte autant.<br>' + syncBtn();
+    }
     out += '<div class="pg-foot">' + foot + '</div>';
     return { body: out };
   };
@@ -436,7 +460,7 @@
       return btn('sync', '↻', 'Synchroniser avec Pronote') + btn('all', 'Tout voir', 'Ouvrir Informations & sondages');
     }
     if (id === 'average') {
-      return btn('sync', '↻', 'Relever toutes les notes et leurs coefficients') + btn('all', 'Tout voir', 'Ouvrir Détail de mes notes');
+      return btn('sync', '↻', 'Relever les moyennes par matière de Pronote') + btn('all', 'Tout voir', 'Ouvrir Détail de mes notes');
     }
     return '';
   }
@@ -481,7 +505,7 @@
       el.disabled = true;
       el.classList.add('pg-spin');
       if (id === 'average') {
-        if (PG.editor) PG.editor.toast('Relevé des notes en cours… (quelques secondes)');
+        if (PG.editor) PG.editor.toast('Relevé des moyennes en cours… (quelques secondes)');
         PG.notes && PG.notes.sync();
       } else if (PG.infos) PG.infos.sync();
     } else if (act === 'all' || act === 'open') {
@@ -621,7 +645,8 @@
       b.classList.remove('pg-spin');
     });
     if (!PG.editor) return;
-    if (r && r.ok) PG.editor.toast(r.count + ' notes relevées, ' + r.coefs + ' coefficient(s) lu(s)');
+    if (r && r.ok && r.subjects) PG.editor.toast(r.subjects + ' moyenne(s) par matière relevée(s)');
+    else if (r && r.ok) PG.editor.toast('Moyennes non affichées par Pronote : ' + r.count + ' notes et ' + r.coefs + ' coefficient(s) relevés');
     else PG.editor.toast((r && r.error) || 'Relevé des notes impossible', 'warn');
   });
   core.on('infos-synced', (r) => {
